@@ -728,7 +728,7 @@ const calculateTotals = (currentWorks) => {
 
               <CRow className="mb-3">
                 <CCol md={4}>
-                  <CFormLabel>Invoice Date *</CFormLabel>
+                  <CFormLabel>Delivery Date *</CFormLabel>
                   <CFormInput
                     type="date"
                     name="deliveryDate"
