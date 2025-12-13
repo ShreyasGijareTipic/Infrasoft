@@ -337,6 +337,9 @@ export default function fetchRoutes(){
 { path:'/incomeTable' , name : 'Income Details', element: IncomeTable},
 { path:'/budget' , name : 'Budget', element: budget},
 { path:'/invoiceTable' , name : 'Invoice Table', element: invoiceTable},
+{ path: '/products/RawMaterial', name: ' Raw Material', element: RawMaterial },
+{ path:'/newRawMaterials' , name : 'Raw Materials', element: newRawMaterials},
+{ path:'/showRawMaterials' , name : 'Raw Materials', element: ShowRawMaterials}, 
 
 //Proforma Invoice
       { path: '/create-proforma-invoice', name: 'New Proforma Invoice', element: ProformaInvoice },

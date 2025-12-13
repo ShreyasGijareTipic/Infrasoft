@@ -133,101 +133,128 @@ const EditInvoice = () => {
   const { t } = useTranslation('global')
 
   useEffect(() => {
-    const fetchOrder = async () => {
-      try {
-        const data = await getAPICall(`/api/order/${id}`)
-        console.log('Fetched order:', data)
+  const fetchOrder = async () => {
+    try {
+      const data = await getAPICall(`/api/order/${id}`)
+      console.log('Fetched order:', data)
 
-        if (data) {
-          const project = data.project || {}
+      if (data) {
+        const project = data.project || {}
 
-          setInitialData({
-  // 🔑 IDs
-  projectId: data.project_id || project.id || null,
-  customer_id: data.customer_id || null,
-
-  // 🔑 Customer / Project info
-  projectName: project.project_name || 'N/A',
-  customer: {
-    name: project.customer_name || 'Unknown',
-    address: project.work_place || '',
-    mobile: project.mobile_number || '',
-  },
-
-  // 🔑 Location
-  lat: data.lat || '',
-  long: data.long || '',
-
-  // 🔑 Invoice details
-  payLater: Boolean(data.payLater),
-  isSettled: Boolean(data.isSettled),
-  invoiceDate: data.invoiceDate || '',
-  deliveryTime: data.deliveryTime || '',
-  deliveryDate: data.deliveryDate || '',
-  invoiceType: convertTo ? parseInt(convertTo) : data.invoiceType || 3,
-  orderStatus: convertTo ? parseInt(convertTo) : data.orderStatus || 1,
-
-  // 🔑 Items with GST
-  items: (data.items || []).map((item) => ({
-    id: item.id,
-    work_type: item.work_type || '',
-    uom: item.uom || '',
-    qty: Number(item.qty || 0),
-    price: Number(item.price || 0),
-    total_price: Number(item.total_price || 0),
-    remark: item.remark || '',
-    gst_percent: Number(item.gst_percent || 0),
-    cgst_amount: Number(item.cgst_amount || 0),
-    sgst_amount: Number(item.sgst_amount || 0),
-  })),
-
-  // 🔑 Amounts
-  totalAmount: Number(data.totalAmount || 0),
-  subtotal: Number(data.totalAmount || 0),
-  taxableAmount: Number(data.totalAmount || 0),
-  discount: Number(data.discount || 0),
-  paidAmount: Number(data.paidAmount || 0),
-  finalAmount: Number(data.finalAmount || 0),
-  balanceAmount: Number(data.finalAmount || 0) - Number(data.paidAmount || 0),
-
-  // 🔑 GST Amounts & Percentages
-  gstAmount: Number(data.gst || 0),
-  sgstAmount: Number(data.sgst || 0),
-  cgstAmount: Number(data.cgst || 0),
-  igstAmount: Number(data.igst || 0),
-  gstPercentage: Number(data.gstPercentage || 18),
-  sgstPercentage: Number(data.sgstPercentage || 9),
-  cgstPercentage: Number(data.cgstPercentage || 9),
-  igstPercentage: Number(data.igstPercentage || 0),
-
-  // 🔑 Payment
-  paymentType: data.paymentType || 0,
-
-  // 🔑 Extra
-  company_id: data.company_id || null,
-
-  // 🔑 Terms and Conditions
-  payment_terms: data.payment_terms || '',
-  terms_and_conditions: data.terms_and_conditions || '',
-  note: data.note || '',
-  ref_id: data.ref_id || '',
-  po_number: data.po_number || '',
-})
-
-          setFormInitialized(true)
-        } else {
-          showToast('danger', 'No order data found')
+        // Parse GST amounts
+        const gstAmount = Number(data.gst || 0)
+        const sgstAmount = Number(data.sgst || 0)
+        const cgstAmount = Number(data.cgst || 0)
+        const igstAmount = Number(data.igst || 0)
+        
+        // Get base amount (before GST)
+        const totalAmount = Number(data.totalAmount || 0)
+        
+        // Calculate percentages by reverse engineering
+        // If GST exists, calculate: (GST / base amount) * 100
+        let gstPercentage = 0
+        let sgstPercentage = 0
+        let cgstPercentage = 0
+        let igstPercentage = 0
+        
+        if (totalAmount > 0) {
+          // Total GST % = (total GST amount / base amount) * 100
+          gstPercentage = (gstAmount / totalAmount) * 100
+          sgstPercentage = (sgstAmount / totalAmount) * 100
+          cgstPercentage = (cgstAmount / totalAmount) * 100
+          igstPercentage = (igstAmount / totalAmount) * 100
         }
-      } catch (err) {
-        console.error('Fetch order error:', err)
-        showToast('danger', t('TOAST.fetch_order_failed'))
-      } finally {
-        setLoading(false)
-      }
-    }
 
-    fetchOrder()
-  }, [id, convertTo, t])
+        setInitialData({
+          // 🔑 IDs
+          projectId: data.project_id || project.id || null,
+          customer_id: data.customer_id || null,
+
+          // 🔑 Customer / Project info
+          projectName: project.project_name || 'N/A',
+          customer: {
+            name: project.customer_name || 'Unknown',
+            address: project.work_place || '',
+            mobile: project.mobile_number || '',
+          },
+
+          // 🔑 Location
+          lat: data.lat || '',
+          long: data.long || '',
+
+          // 🔑 Invoice details
+          payLater: Boolean(data.payLater),
+          isSettled: Boolean(data.isSettled),
+          invoiceDate: data.invoiceDate || '',
+          deliveryTime: data.deliveryTime || '',
+          deliveryDate: data.deliveryDate || '',
+          invoiceType: convertTo ? parseInt(convertTo) : data.invoiceType || 3,
+          orderStatus: convertTo ? parseInt(convertTo) : data.orderStatus || 1,
+
+          // 🔑 Items with GST
+          items: (data.items || []).map((item) => ({
+            id: item.id,
+            work_type: item.work_type || '',
+            uom: item.uom || '',
+            qty: Number(item.qty || 0),
+            price: Number(item.price || 0),
+            total_price: Number(item.total_price || 0),
+            remark: item.remark || '',
+            gst_percent: item.gst_percent !== null && item.gst_percent !== undefined 
+              ? Number(item.gst_percent) 
+              : 18,
+            cgst_amount: Number(item.cgst_amount || 0),
+            sgst_amount: Number(item.sgst_amount || 0),
+          })),
+
+          // 🔑 Amounts
+          totalAmount: totalAmount,
+          subtotal: totalAmount,
+          taxableAmount: totalAmount,
+          discount: Number(data.discount || 0),
+          paidAmount: Number(data.paidAmount || 0),
+          finalAmount: Number(data.finalAmount || 0),
+          balanceAmount: Number(data.finalAmount || 0) - Number(data.paidAmount || 0),
+
+          // 🔑 GST Amounts & Percentages - CALCULATED from amounts
+          gstAmount: gstAmount,
+          sgstAmount: sgstAmount,
+          cgstAmount: cgstAmount,
+          igstAmount: igstAmount,
+          // Round to 2 decimal places
+          gstPercentage: Math.round(gstPercentage * 100) / 100,
+          sgstPercentage: Math.round(sgstPercentage * 100) / 100,
+          cgstPercentage: Math.round(cgstPercentage * 100) / 100,
+          igstPercentage: Math.round(igstPercentage * 100) / 100,
+
+          // 🔑 Payment
+          paymentType: data.paymentType || 0,
+
+          // 🔑 Extra
+          company_id: data.company_id || null,
+
+          // 🔑 Terms and Conditions
+          payment_terms: data.payment_terms || '',
+          terms_and_conditions: data.terms_and_conditions || '',
+          note: data.note || '',
+          ref_id: data.ref_id || '',
+          po_number: data.po_number || '',
+        })
+
+        setFormInitialized(true)
+      } else {
+        showToast('danger', 'No order data found')
+      }
+    } catch (err) {
+      console.error('Fetch order error:', err)
+      showToast('danger', t('TOAST.fetch_order_failed'))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  fetchOrder()
+}, [id, convertTo, t])
 
   const handleSubmit = async (updatedState) => {
     try {

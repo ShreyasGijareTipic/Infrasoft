@@ -39,7 +39,39 @@ const ProformaInvoiceDetails = () => {
       const response = await getAPICall(`/api/proforma-invoices/${id}`)
 
       if (response.success) {
-        setProformaInvoice(response.data)
+        const data = response.data
+        
+        // Calculate GST percentages from amounts
+        const cgstAmt = parseFloat(data.cgst_amount) || 0
+        const sgstAmt = parseFloat(data.sgst_amount) || 0
+        const igstAmt = parseFloat(data.igst_amount) || 0
+        const gstAmt = parseFloat(data.gst_amount) || 0
+        
+        // Calculate total after row-level GST from details
+        const totalAfterRowGST = (data.details || []).reduce((sum, item) => {
+          return sum + (parseFloat(item.total_price) || 0)
+        }, 0)
+        
+        // Calculate percentages based on totalAfterRowGST (which is the taxable base for global GST)
+        let calculatedCGST = 0
+        let calculatedSGST = 0
+        let calculatedIGST = 0
+        let calculatedGST = 0
+        
+        if (totalAfterRowGST > 0) {
+          calculatedCGST = Math.round((cgstAmt / totalAfterRowGST) * 100 * 100) / 100
+          calculatedSGST = Math.round((sgstAmt / totalAfterRowGST) * 100 * 100) / 100
+          calculatedIGST = Math.round((igstAmt / totalAfterRowGST) * 100 * 100) / 100
+          calculatedGST = Math.round((gstAmt / totalAfterRowGST) * 100 * 100) / 100
+        }
+        
+        // Add calculated percentages to data object
+        data.cgst_percentage_calculated = calculatedCGST
+        data.sgst_percentage_calculated = calculatedSGST
+        data.igst_percentage_calculated = calculatedIGST
+        data.gst_percentage_calculated = calculatedGST
+        
+        setProformaInvoice(data)
       } else {
         showToast('danger', 'Failed to fetch proforma invoice')
       }
@@ -338,7 +370,7 @@ const ProformaInvoiceDetails = () => {
                       <tr>
                         <td>
                           <strong>
-                            CGST ({parseFloat(proformaInvoice.cgst_percentage) || (parseFloat(proformaInvoice.gst_percentage) / 2) || 0}%):
+                            CGST ({proformaInvoice.cgst_percentage_calculated || 0}%):
                           </strong>
                         </td>
                         <td className="text-center">₹{displayTotals.globalCGST.toFixed(2)}</td>
@@ -348,7 +380,7 @@ const ProformaInvoiceDetails = () => {
                       <tr>
                         <td>
                           <strong>
-                            SGST ({parseFloat(proformaInvoice.sgst_percentage) || (parseFloat(proformaInvoice.gst_percentage) / 2) || 0}%):
+                            SGST ({proformaInvoice.sgst_percentage_calculated || 0}%):
                           </strong>
                         </td>
                         <td className="text-center">₹{displayTotals.globalSGST.toFixed(2)}</td>
@@ -358,7 +390,7 @@ const ProformaInvoiceDetails = () => {
                       <tr>
                         <td>
                           <strong>
-                            IGST ({parseFloat(proformaInvoice.igst_percentage) || parseFloat(proformaInvoice.gst_percentage) || 0}%):
+                            IGST ({proformaInvoice.igst_percentage_calculated || 0}%):
                           </strong>
                         </td>
                         <td className="text-center">₹{displayTotals.globalIGST.toFixed(2)}</td>

@@ -192,42 +192,42 @@ const Invoice = ({ editMode = false, initialData = null, onSubmit = null }) => {
 
   // Initialize with initialData if in edit mode
   useEffect(() => {
-    if (editMode && initialData) {
-      setForm({
-        projectId: initialData.projectId,
-        projectName: initialData.projectName,
-        customer_id: initialData.customer_id,
-        customer_name: initialData.customer?.name || '',
-        address: initialData.customer?.address || '',
-        mobile_number: initialData.customer?.mobile || '',
-        customer: initialData.customer,
-        invoiceType: initialData.invoiceType,
-        invoiceDate: initialData.invoiceDate,
-        deliveryDate: initialData.deliveryDate || new Date().toISOString().split('T')[0],
-        discount: initialData.discount || 0,
-        paidAmount: initialData.paidAmount || 0,
-        subtotal: initialData.subtotal || 0,
-        taxableAmount: initialData.taxableAmount || 0,
-        gstAmount: initialData.gstAmount || 0,
-        sgstAmount: initialData.sgst || 0,
-        cgstAmount: initialData.cgst || 0,
-        igstAmount: initialData.igst || 0,
-        finalAmount: initialData.finalAmount || 0,
-        gstPercentage: initialData.gstPercentage || 18,
-        sgstPercentage: initialData.sgstPercentage || 9,
-        cgstPercentage: initialData.cgstPercentage || 9,
-        igstPercentage: initialData.igstPercentage || 0,
-        ref_id: initialData.ref_id,
-        	po_number: initialData.po_number || '',
-      });
-      setWorks(initialData.items || [{ work_type: '', uom: '', qty: 0, price: 0, total_price: 0, remark: '' }]);
-      setSearchQuery(initialData.projectName || '');
-      calculateTotals(initialData.items || works);
-      setPaymentTerms(initialData.payment_terms ? initialData.payment_terms.split('\n') : initialPaymentTerms);
-      setTermsAndConditions(initialData.terms_and_conditions ? initialData.terms_and_conditions.split('\n') : initialTermsAndConditions);
-      setNote(initialData.note || '');
-    }
-  }, [editMode, initialData]);
+  if (editMode && initialData) {
+    setForm({
+      projectId: initialData.projectId,
+      projectName: initialData.projectName,
+      customer_id: initialData.customer_id,
+      customer_name: initialData.customer?.name || '',
+      address: initialData.customer?.address || '',
+      mobile_number: initialData.customer?.mobile || '',
+      customer: initialData.customer,
+      invoiceType: initialData.invoiceType,
+      invoiceDate: initialData.invoiceDate,
+      deliveryDate: initialData.deliveryDate || new Date().toISOString().split('T')[0],
+      discount: initialData.discount || 0,
+      paidAmount: initialData.paidAmount || 0,
+      subtotal: initialData.subtotal || 0,
+      taxableAmount: initialData.taxableAmount || 0,
+      gstAmount: initialData.gstAmount || 0,
+      sgstAmount: initialData.sgstAmount || 0,
+      cgstAmount: initialData.cgstAmount || 0,
+      igstAmount: initialData.igstAmount || 0,
+      finalAmount: initialData.finalAmount || 0,
+      gstPercentage: initialData.gstPercentage ?? 0,
+      sgstPercentage: initialData.sgstPercentage ?? 0,
+      cgstPercentage: initialData.cgstPercentage ?? 0,
+      igstPercentage: initialData.igstPercentage ?? 0,
+      ref_id: initialData.ref_id,
+      po_number: initialData.po_number || '',
+    });
+    setWorks(initialData.items || [{ work_type: '', uom: '', qty: 0, price: 0, total_price: 0, remark: '' }]);
+    setSearchQuery(initialData.projectName || '');
+    calculateTotals(initialData.items || works);
+    setPaymentTerms(initialData.payment_terms ? initialData.payment_terms.split('\n') : initialPaymentTerms);
+    setTermsAndConditions(initialData.terms_and_conditions ? initialData.terms_and_conditions.split('\n') : initialTermsAndConditions);
+    setNote(initialData.note || '');
+  }
+}, [editMode, initialData]);
 
   // Initial fetch
   useEffect(() => {
@@ -399,12 +399,15 @@ const Invoice = ({ editMode = false, initialData = null, onSubmit = null }) => {
 const handleWorkChange = (index, field, value) => {
   const updated = [...works];
 
-  // Convert GST properly (allow 0)
+  // Convert numeric fields properly while preserving 0
   if (field === 'qty' || field === 'price') {
-    updated[index][field] = parseFloat(value) || 0;
+    updated[index][field] = value === "" ? 0 : parseFloat(value) || 0;
   } 
   else if (field === 'gst_percent') {
-    updated[index].gst_percent = value === "" ? 0 : parseFloat(value);
+    // CRITICAL: Keep 0 as 0, don't default to 18
+    updated[index].gst_percent = value === "" || value === null || value === undefined 
+      ? 0 
+      : parseFloat(value) || 0;
   } 
   else {
     updated[index][field] = value;
@@ -412,7 +415,7 @@ const handleWorkChange = (index, field, value) => {
 
   const qty = updated[index].qty || 0;
   const price = updated[index].price || 0;
-  const gstPercent = updated[index].gst_percent || 0;
+  const gstPercent = updated[index].gst_percent ?? 0; // Use ?? to preserve 0
 
   const baseAmount = qty * price;
   const halfGST = gstPercent / 2;

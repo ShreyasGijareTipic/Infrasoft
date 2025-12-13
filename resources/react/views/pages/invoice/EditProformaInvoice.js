@@ -336,11 +336,13 @@ const handleWorkChange = (index, field, value) => {
   const updated = [...works];
 
   if (field === 'qty' || field === 'price') {
-    updated[index][field] = parseFloat(value) || 0;
+    updated[index][field] = value === "" ? 0 : parseFloat(value) || 0;
   } 
   else if (field === 'gst_percent') {
-    // Allow 0 as a valid value
-    updated[index].gst_percent = value === "" ? 0 : parseFloat(value) || 0;
+    // CRITICAL: Keep 0 as 0, don't default to 18
+    updated[index].gst_percent = value === "" || value === null || value === undefined 
+      ? 0 
+      : parseFloat(value) || 0;
   } 
   else {
     updated[index][field] = value;
@@ -348,7 +350,7 @@ const handleWorkChange = (index, field, value) => {
 
   const qty = updated[index].qty || 0;
   const price = updated[index].price || 0;
-  const gstPercent = updated[index].gst_percent || 0;
+  const gstPercent = updated[index].gst_percent ?? 0; // Use ?? to preserve 0
 
   const baseAmount = qty * price;
   const halfGST = gstPercent / 2;

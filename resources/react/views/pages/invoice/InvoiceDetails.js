@@ -98,98 +98,110 @@ const InvoiceDetails = () => {
   }
 
   const fetchOrder = async () => {
-    try {
-      const response = await getAPICall(`/api/order/${id}`)
-      console.log('Fetched order:', response)
+  try {
+    const response = await getAPICall(`/api/order/${id}`)
+    console.log('Fetched order:', response)
 
-      const paymentModeString =
-        response.paymentType === 0 ? 'Cash' : 'Online (UPI/Bank Transfer)'
+    const paymentModeString =
+      response.paymentType === 0 ? 'Cash' : 'Online (UPI/Bank Transfer)'
 
-      let orderStatusString = ''
-      switch (response.orderStatus) {
-        case 0:
-          orderStatusString = 'Cancelled Order'
-          break
-        case 1:
-          orderStatusString = 'Delivered Order'
-          break
-        case 2:
-          orderStatusString = 'Order Pending'
-          break
-        case 3:
-          orderStatusString = 'Quotation'
-          break
-        default:
-          orderStatusString = 'Unknown Status'
-      }
-
-      const discountValue = response.discount || 0
-      const finalAmount = Number(response.finalAmount || 0).toFixed(2)
-      const totalAmount = Number(response.totalAmount || 0).toFixed(2)
-      const remaining = finalAmount - (response.paidAmount || 0)
-      setRemainingAmount(Math.max(0, remaining))
-
-      setFormData({
-        project_name: response.project?.project_name || 'N/A',
-        customer: {
-          name: response.project?.customer_name || 'N/A',
-          address: response.project?.work_place || 'N/A',
-          mobile: response.project?.mobile_number || 'N/A',
-        },
-        gst_number: response.project?.gst_number || 'N/A',
-        pan_number: response.project?.pan_number || 'N/A',
-
-        date: response.invoiceDate || '',
-        items: (response.items || []).map((item) => ({
-          work_type: item.product_name || item.work_type || 'N/A',
-          qty: item.dQty || item.qty || 0,
-          uom: item.uom || 'N/A',
-          price: item.dPrice || item.price || 0,
-          total_price: item.total_price || 0,
-          remark: item.remark || '',
-          gst_percent: Number(item.gst_percent) || 0,
-          cgst_amount: Number(item.cgst_amount) || 0,
-          sgst_amount: Number(item.sgst_amount) || 0,
-        })),
-        discount: discountValue,
-        amountPaid: response.paidAmount || 0,
-        paymentMode: paymentModeString,
-        invoiceStatus: orderStatusString,
-        totalAmount: totalAmount,
-        finalAmount: finalAmount,
-
-        cgst: Number(response.cgst || 0).toFixed(2),
-        sgst: Number(response.sgst || 0).toFixed(2),
-        gst: Number(response.gst || 0).toFixed(2),
-        igst: Number(response.igst || 0).toFixed(2),
-        
-        // Add GST percentages
-        cgstPercentage: Number(response.cgstPercentage || response.cgst_percentage || 9),
-        sgstPercentage: Number(response.sgstPercentage || response.sgst_percentage || 9),
-        igstPercentage: Number(response.igstPercentage || response.igst_percentage || 0),
-        gstPercentage: Number(response.gstPercentage || response.gst_percentage || 18),
-
-        ref_id: response.ref_id,
-        po_number: response.po_number || '',
-
-        terms_and_conditions: response.terms_and_conditions || '',
-        payment_terms: response.payment_terms || '',
-        note: response.note || '',
-
-        invoice_number: response.invoice_number || 'N/A',
-        status: response.orderStatus,
-        deliveryDate: response.deliveryDate || '',
-        invoiceType: response.invoiceType || 3,
-        invoice_rules: Array.isArray(response.invoice_rules) ? response.invoice_rules : [],
-      })
-
-      setGrandTotal(finalAmount)
-      setTotalAmountWords(numberToWords(finalAmount))
-    } catch (error) {
-      console.error('Error fetching order data:', error)
-      showToast('danger', 'Error fetching invoice details')
+    let orderStatusString = ''
+    switch (response.orderStatus) {
+      case 0:
+        orderStatusString = 'Cancelled Order'
+        break
+      case 1:
+        orderStatusString = 'Delivered Order'
+        break
+      case 2:
+        orderStatusString = 'Order Pending'
+        break
+      case 3:
+        orderStatusString = 'Quotation'
+        break
+      default:
+        orderStatusString = 'Unknown Status'
     }
+
+    const discountValue = response.discount || 0
+    const finalAmount = Number(response.finalAmount || 0).toFixed(2)
+    const totalAmount = Number(response.totalAmount || 0).toFixed(2)
+    const remaining = finalAmount - (response.paidAmount || 0)
+    setRemainingAmount(Math.max(0, remaining))
+
+    // Calculate GST percentages from amounts
+    const cgstAmt = Number(response.cgst || 0)
+    const sgstAmt = Number(response.sgst || 0)
+    const igstAmt = Number(response.igst || 0)
+    const gstAmt = Number(response.gst || 0)
+    const totalAmt = Number(response.totalAmount || 0)
+    
+    const cgstPercentage = totalAmt > 0 ? Math.round((cgstAmt / totalAmt) * 100 * 100) / 100 : 0
+    const sgstPercentage = totalAmt > 0 ? Math.round((sgstAmt / totalAmt) * 100 * 100) / 100 : 0
+    const igstPercentage = totalAmt > 0 ? Math.round((igstAmt / totalAmt) * 100 * 100) / 100 : 0
+    const gstPercentage = totalAmt > 0 ? Math.round((gstAmt / totalAmt) * 100 * 100) / 100 : 0
+
+    setFormData({
+      project_name: response.project?.project_name || 'N/A',
+      customer: {
+        name: response.project?.customer_name || 'N/A',
+        address: response.project?.work_place || 'N/A',
+        mobile: response.project?.mobile_number || 'N/A',
+      },
+      gst_number: response.project?.gst_number || 'N/A',
+      pan_number: response.project?.pan_number || 'N/A',
+
+      date: response.invoiceDate || '',
+      items: (response.items || []).map((item) => ({
+        work_type: item.product_name || item.work_type || 'N/A',
+        qty: item.dQty || item.qty || 0,
+        uom: item.uom || 'N/A',
+        price: item.dPrice || item.price || 0,
+        total_price: item.total_price || 0,
+        remark: item.remark || '',
+        gst_percent: Number(item.gst_percent) || 0,
+        cgst_amount: Number(item.cgst_amount) || 0,
+        sgst_amount: Number(item.sgst_amount) || 0,
+      })),
+      discount: discountValue,
+      amountPaid: response.paidAmount || 0,
+      paymentMode: paymentModeString,
+      invoiceStatus: orderStatusString,
+      totalAmount: totalAmount,
+      finalAmount: finalAmount,
+
+      cgst: cgstAmt.toFixed(2),
+      sgst: sgstAmt.toFixed(2),
+      gst: gstAmt.toFixed(2),
+      igst: igstAmt.toFixed(2),
+      
+      // Add calculated GST percentages
+      cgstPercentage: cgstPercentage,
+      sgstPercentage: sgstPercentage,
+      igstPercentage: igstPercentage,
+      gstPercentage: gstPercentage,
+
+      ref_id: response.ref_id,
+      po_number: response.po_number || '',
+
+      terms_and_conditions: response.terms_and_conditions || '',
+      payment_terms: response.payment_terms || '',
+      note: response.note || '',
+
+      invoice_number: response.invoice_number || 'N/A',
+      status: response.orderStatus,
+      deliveryDate: response.deliveryDate || '',
+      invoiceType: response.invoiceType || 3,
+      invoice_rules: Array.isArray(response.invoice_rules) ? response.invoice_rules : [],
+    })
+
+    setGrandTotal(finalAmount)
+    setTotalAmountWords(numberToWords(finalAmount))
+  } catch (error) {
+    console.error('Error fetching order data:', error)
+    showToast('danger', 'Error fetching invoice details')
   }
+}
 
   console.log('Customer GST Number:', formData?.gst_number)
 

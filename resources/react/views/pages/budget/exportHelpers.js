@@ -495,7 +495,7 @@ export const downloadPDF = (logsData) => {
     head: [["No.", "Paid By", "Type", "Amount", "Date", "Description"]],
     body: tableData,
     startY: doc.lastAutoTable.finalY + 8,
-    theme: "striped",
+    theme: "grid",
     headStyles: { 
       fillColor: [52, 152, 219],
       textColor: 255,
@@ -505,6 +505,10 @@ export const downloadPDF = (logsData) => {
     },
     bodyStyles: {
       fontSize: 10
+    },
+    styles: {
+      lineColor: [200, 200, 200],
+      lineWidth: 0.1,
     },
     columnStyles: {
       0: { cellWidth: 15, halign: 'center' },
