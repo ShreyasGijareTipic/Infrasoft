@@ -1495,6 +1495,45 @@ const ProjectSummary = () => {
                 </CCardBody>
               </CCard>
 
+              {/* Payment Received in Account */}
+              <CCard className="mb-4 border-0" color="secondary" textColor="dark">
+                <CCardBody className="bg-secondary-subtle rounded">
+                  <h5 className="text-secondary mb-3">Payment Received in Account</h5>
+                  {currentProject.receiver_banks && currentProject.receiver_banks.length > 0 ? (
+                    <CRow className="g-3">
+                      {currentProject.receiver_banks.map((bank, index) => (
+                        <CCol xl={4} lg={6} md={6} sm={12} key={index}>
+                          <CFormLabel>
+                            <strong>{bank.account_name || bank.bank_name || 'Unknown Account'}</strong>
+                            {bank.bank_name && bank.account_name && bank.bank_name !== bank.account_name && (
+                              <span className="text-muted ms-1">({bank.bank_name})</span>
+                            )}
+                          </CFormLabel>
+                          {bank.account_number && (
+                            <div className="small text-muted mb-1">
+                              A/C: {bank.account_number}
+                              {bank.ifsc_code && ` | IFSC: ${bank.ifsc_code}`}
+                            </div>
+                          )}
+                          <CInputGroup>
+                            <CInputGroupText className="bg-secondary text-white">₹</CInputGroupText>
+                            <CFormInput
+                              value={formatIndianCurrency(bank.amount)}
+                              readOnly
+                              className="bg-white fw-bold"
+                            />
+                          </CInputGroup>
+                        </CCol>
+                      ))}
+                    </CRow>
+                  ) : (
+                    <div className="text-center py-3 text-muted">
+                      <p className="mb-0">No payment account information available</p>
+                    </div>
+                  )}
+                </CCardBody>
+              </CCard>
+
               {/* Payment Details */}
               <CCard className="mb-4 border-0" color="info" textColor="dark">
                 <CCardBody className="bg-info-subtle rounded">

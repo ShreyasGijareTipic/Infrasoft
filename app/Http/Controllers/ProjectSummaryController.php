@@ -101,12 +101,13 @@ class ProjectSummaryController extends Controller
                 ]);
 
             // ---------- Orders Data (Revenue) ----------
+            // FIXED: Use finalAmount instead of totalAmount (finalAmount includes tax)
             $ordersData = Order::where('company_id', $companyId)
                 ->where('project_id', $project->id)
                 ->selectRaw('
-                    SUM(totalAmount) as total_amount,
+                    SUM(finalAmount) as total_amount,
                     SUM(paidAmount) as paid_amount,
-                    SUM(totalAmount - paidAmount) as pending_amount
+                    SUM(finalAmount - paidAmount) as pending_amount
                 ')
                 ->first();
 
@@ -114,15 +115,41 @@ class ProjectSummaryController extends Controller
             $paidAmount = $ordersData->paid_amount ?? 0;
             $pendingAmount = $ordersData->pending_amount ?? 0;
 
+            // ---------- Receiver Banks (Bank-wise payment breakdown) ----------
+            $receiverBanks = Order::where('company_id', $companyId)
+                ->where('project_id', $project->id)
+                ->whereNotNull('paymentAccountId')
+                ->where('paymentAccountId', '!=', '')
+                ->leftJoin('accounts', 'orders.paymentAccountId', '=', 'accounts.id')
+                ->select(
+                    'accounts.id as account_id',
+                    'accounts.account_name',
+                    'accounts.account_number',
+                    'accounts.bank_name',
+                    'accounts.ifsc_code',
+                    DB::raw('SUM(orders.paidAmount) as total_received')
+                )
+                ->groupBy(
+                    'accounts.id',
+                    'accounts.account_name',
+                    'accounts.account_number',
+                    'accounts.bank_name',
+                    'accounts.ifsc_code'
+                )
+                ->get()
+                ->map(fn($item) => [
+                    'account_id' => $item->account_id,
+                    'account_name' => $item->account_name ?? 'Unknown Account',
+                    'account_number' => $item->account_number,
+                    'bank_name' => $item->bank_name,
+                    'ifsc_code' => $item->ifsc_code,
+                    'amount' => (float) $item->total_received
+                ]);
+
             // ---------- Profit / Loss Calculation ----------
-            // Profit/Loss = Total Order Amount - Total Expenses
+            // Profit/Loss = Total Order Amount (with tax) - Total Expenses
             $profitLoss = $totalAmount - $totalExpenses;
             $isProfit = $profitLoss >= 0;
-
-            // ---------- Receiver Banks (if you still want to show bank-wise breakdown) ----------
-            // This can be from Orders or a separate payment tracking table
-            $receiverBanks = []; // Empty for now since we're using orders table
-            // If you have bank info in orders or a related table, add query here
 
             // ---------- Response ----------
             $response[] = [
@@ -140,7 +167,7 @@ class ProjectSummaryController extends Controller
                 'avg_survey_rate' => (float) $avgSurveyRate,
                 'total_survey_billing_amount' => (float) $totalSurveyBilling,
 
-                // Revenue from Orders
+                // Revenue from Orders (FIXED: now using finalAmount)
                 'total_amount' => (float) $totalAmount,
                 'paid_amount' => (float) $paidAmount,
                 'pending_amount' => (float) $pendingAmount,
@@ -152,7 +179,7 @@ class ProjectSummaryController extends Controller
                 'extra_billing' => (float) $extraBilling,
                 'total_expenses' => (float) $totalExpenses,
 
-                // Receiver banks (optional)
+                // Receiver banks (bank-wise payment tracking)
                 'receiver_banks' => $receiverBanks,
 
                 // Profit/Loss calculation
