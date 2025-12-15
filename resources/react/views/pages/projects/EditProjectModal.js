@@ -9,11 +9,12 @@ import {
   CFormSwitch,
   CFormLabel,
   CCol,
+  CRow,
 } from "@coreui/react";
 import { useState, useEffect } from "react";
 import { put, getAPICall } from "../../../util/api";
 import { getUserType } from "../../../util/session";
-import Select from "react-select"; // ✅ correct import
+import Select from "react-select";
 import { useToast } from "../../common/toast/ToastContext";
 
 const EditProjectModal = ({ project, onClose, onUpdateSuccess }) => {
@@ -65,51 +66,75 @@ const EditProjectModal = ({ project, onClose, onUpdateSuccess }) => {
   };
 
   return (
-    <CModal visible={true} onClose={onClose} alignment="center" size="lg">
-      <CModalHeader>Update Project</CModalHeader>
-      <CModalBody>
-        <div className="row">
-          <div className="col-md-6 mb-2">
+    <CModal 
+      visible={true} 
+      onClose={onClose} 
+      alignment="center" 
+      size="lg"
+      backdrop="static"
+      keyboard={true}
+      scrollable
+    >
+      <CModalHeader closeButton>
+        <strong>Update Project</strong>
+      </CModalHeader>
+      
+      <CModalBody className="p-3 p-md-4">
+        <CRow className="g-3">
+          {/* Customer Name */}
+          <CCol xs={12} md={6}>
             <CFormInput
               label="Customer Name"
               name="customer_name"
               value={form.customer_name || ""}
               onChange={handleChange}
             />
-          </div>
-          <div className="col-md-6 mb-2">
+          </CCol>
+
+          {/* Mobile Number */}
+          <CCol xs={12} md={6}>
             <CFormInput
               label="Mobile Number"
               name="mobile_number"
+              type="tel"
               value={form.mobile_number || ""}
               onChange={handleChange}
             />
-          </div>
-          <div className="col-md-6 mb-2">
+          </CCol>
+
+          {/* Project Name */}
+          <CCol xs={12} md={6}>
             <CFormInput
               label="Project Name"
               name="project_name"
               value={form.project_name || ""}
               onChange={handleChange}
             />
-          </div>
-          <div className="col-md-6 mb-2">
+          </CCol>
+
+          {/* Project Cost */}
+          <CCol xs={12} md={6}>
             <CFormInput
               label="Project Cost"
               name="project_cost"
+              type="number"
               value={form.project_cost || ""}
               onChange={handleChange}
             />
-          </div>
-          <div className="col-md-6 mb-2">
+          </CCol>
+
+          {/* Work Place */}
+          <CCol xs={12} md={6}>
             <CFormInput
               label="Work Place"
               name="work_place"
               value={form.work_place || ""}
               onChange={handleChange}
             />
-          </div>
-          <div className="col-md-6 mb-2">
+          </CCol>
+
+          {/* Start Date */}
+          <CCol xs={12} md={6}>
             <CFormInput
               type="date"
               label="Start Date"
@@ -117,8 +142,10 @@ const EditProjectModal = ({ project, onClose, onUpdateSuccess }) => {
               value={form.start_date || ""}
               onChange={handleChange}
             />
-          </div>
-          <div className="col-md-6 mb-2">
+          </CCol>
+
+          {/* End Date */}
+          <CCol xs={12} md={6}>
             <CFormInput
               type="date"
               label="End Date"
@@ -126,11 +153,11 @@ const EditProjectModal = ({ project, onClose, onUpdateSuccess }) => {
               value={form.end_date || ""}
               onChange={handleChange}
             />
-          </div>
+          </CCol>
 
-          {/* ✅ Supervisor Dropdown */}
-          {(userType === 1 || userType === 3) &&(
-            <CCol md={6} className="mb-2">
+          {/* Supervisor Dropdown */}
+          {(userType === 1 || userType === 3) && (
+            <CCol xs={12} md={6}>
               <CFormLabel>Supervisor</CFormLabel>
               <Select
                 options={users.map((u) => ({
@@ -149,35 +176,44 @@ const EditProjectModal = ({ project, onClose, onUpdateSuccess }) => {
                   }))
                 }
                 placeholder="Select Supervisor"
+                isClearable
               />
             </CCol>
           )}
 
-          <div className="col-md-6 mb-2">
+          {/* Commission */}
+          <CCol xs={12} md={6}>
             <CFormInput
               label="Commission"
               name="commission"
+              type="number"
               value={form.commission || ""}
               onChange={handleChange}
             />
-          </div>
-          <div className="col-md-6 mb-2">
+          </CCol>
+
+          {/* GST Number */}
+          <CCol xs={12} md={6}>
             <CFormInput
               label="GST Number"
               name="gst_number"
               value={form.gst_number || ""}
               onChange={handleChange}
             />
-          </div>
-          <div className="col-md-6 mb-2">
+          </CCol>
+
+          {/* PAN Number */}
+          <CCol xs={12} md={6}>
             <CFormInput
               label="PAN Number"
               name="pan_number"
               value={form.pan_number || ""}
               onChange={handleChange}
             />
-          </div>
-          <div className="col-md-12 mb-2">
+          </CCol>
+
+          {/* Remark */}
+          <CCol xs={12}>
             <CFormTextarea
               label="Remark"
               name="remark"
@@ -185,8 +221,10 @@ const EditProjectModal = ({ project, onClose, onUpdateSuccess }) => {
               value={form.remark || ""}
               onChange={handleChange}
             />
-          </div>
-          <div className="col-md-6 mb-3 d-flex align-items-center">
+          </CCol>
+
+          {/* Visible Switch */}
+          <CCol xs={12}>
             <CFormSwitch
               id="is_visible"
               label="Visible"
@@ -194,14 +232,21 @@ const EditProjectModal = ({ project, onClose, onUpdateSuccess }) => {
               checked={form.is_visible === 1 || form.is_visible === true}
               onChange={handleChange}
             />
-          </div>
-        </div>
+          </CCol>
+        </CRow>
       </CModalBody>
-      <CModalFooter>
-        <CButton color="secondary" onClick={onClose}>
+
+      <CModalFooter className="d-flex gap-2">
+        <CButton 
+          color="secondary" 
+          onClick={onClose}
+        >
           Cancel
         </CButton>
-        <CButton color="primary" onClick={handleSubmit}>
+        <CButton 
+          color="primary" 
+          onClick={handleSubmit}
+        >
           Save Changes
         </CButton>
       </CModalFooter>

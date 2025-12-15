@@ -202,48 +202,25 @@ import { getAPICall, put } from '../../../util/api'
 const UpdateProjectModal = ({ visible, onClose, orderData, onUpdated }) => {
   const [formData, setFormData] = useState({})
   const [loading, setLoading] = useState(false)
+  const [accountants, setAccountants] = useState([])
 
-  console.log(orderData);
-
-
-     const [accountants, setAccountants] = useState([]);
+  console.log(orderData)
 
   useEffect(() => {
     const fetchAccountants = async () => {
       try {
-        const response = await getAPICall("/api/usersData");
+        const response = await getAPICall("/api/usersData")
         if (response.status && response.users) {
           // filter only type=2 (accountants)
-          const filtered = response.users.filter((u) => u.type === 2);
-          setAccountants(filtered);
+          const filtered = response.users.filter((u) => u.type === 2)
+          setAccountants(filtered)
         }
       } catch (error) {
-        console.error("Error fetching accountants:", error);
+        console.error("Error fetching accountants:", error)
       }
-    };
-    fetchAccountants();
-  }, []);
-
-
-
-   // Pre-select supervisor if project already has one
-//   useEffect(() => {
-//     if (orderData?.project?.supervisor_id) {
-//       setFormData((prev) => ({
-//         ...prev,
-//         supervisor_id: orderData.project.supervisor_id,
-//       }))
-//     }
-//   }, [orderData, setFormData])
-
-//   const handleChange = (e) => {
-//     const { name, value } = e.target
-//     setFormData((prev) => ({
-//       ...prev,
-//       [name]: value,
-//     }))
-//   }
-  
+    }
+    fetchAccountants()
+  }, [])
 
   useEffect(() => {
     if (orderData && orderData.project) {
@@ -259,16 +236,12 @@ const UpdateProjectModal = ({ visible, onClose, orderData, onUpdated }) => {
         is_visible: !!orderData.project.is_visible,
         remark: orderData.project.remark || '',
         supervisor_id: orderData.project.supervisor_id || '',
-        // supervisor_id: orderData.project.supervisor.name  || '',
         commission: orderData.project.commission || '',
         gst_number: orderData.project.gst_number || '',
         pan_number: orderData.project.pan_number || '',
       })
     }
   }, [orderData])
-
-  
-  
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target
@@ -303,193 +276,176 @@ const UpdateProjectModal = ({ visible, onClose, orderData, onUpdated }) => {
   if (!orderData || !orderData.project) return null
 
   return (
-    <CModal visible={visible} onClose={onClose} size="lg">
-      <CModalHeader>
+    <CModal 
+      visible={visible} 
+      onClose={onClose} 
+      size="lg"
+      backdrop="static"
+      keyboard={true}
+      scrollable
+    >
+      <CModalHeader closeButton>
         <CModalTitle>Update Project: {orderData.project.project_name}</CModalTitle>
       </CModalHeader>
-      <CModalBody>
-   
-  <CForm>
-  <CRow className="g-3">
-    <CCol md={3}>
-      <CFormLabel>Customer Name</CFormLabel>
-      <CFormInput
-        name="customer_name"
-        value={formData.customer_name}
-        onChange={handleChange}
-      />
-    </CCol>
+      
+      <CModalBody className="p-3 p-md-4">
+        <CForm>
+          <CRow className="g-3">
+            {/* Customer Name */}
+            <CCol xs={12} sm={6} md={4}>
+              <CFormLabel>Customer Name</CFormLabel>
+              <CFormInput
+                name="customer_name"
+                value={formData.customer_name}
+                onChange={handleChange}
+              />
+            </CCol>
 
-    <CCol md={3}>
-      <CFormLabel>Mobile Number</CFormLabel>
-      <CFormInput
-        name="mobile_number"
-        value={formData.mobile_number}
-        onChange={handleChange}
-      />
-    </CCol>
+            {/* Mobile Number */}
+            <CCol xs={12} sm={6} md={4}>
+              <CFormLabel>Mobile Number</CFormLabel>
+              <CFormInput
+                type="tel"
+                name="mobile_number"
+                value={formData.mobile_number}
+                onChange={handleChange}
+              />
+            </CCol>
 
-    <CCol md={3}>
-      <CFormLabel>Project Name</CFormLabel>
-      <CFormInput
-        name="project_name"
-        value={formData.project_name}
-        onChange={handleChange}
-      />
-    </CCol>
+            {/* Project Name */}
+            <CCol xs={12} sm={6} md={4}>
+              <CFormLabel>Project Name</CFormLabel>
+              <CFormInput
+                name="project_name"
+                value={formData.project_name}
+                onChange={handleChange}
+              />
+            </CCol>
 
-    <CCol md={3}>
-      <CFormLabel>Project Cost</CFormLabel>
-      <CFormInput
-        name="project_cost"
-        value={formData.project_cost}
-        onChange={handleChange}
-      />
-    </CCol>
+            {/* Project Cost */}
+            <CCol xs={12} sm={6} md={4}>
+              <CFormLabel>Project Cost</CFormLabel>
+              <CFormInput
+                type="number"
+                name="project_cost"
+                value={formData.project_cost}
+                onChange={handleChange}
+              />
+            </CCol>
 
-    <CCol md={3}>
-      <CFormLabel>Work Place</CFormLabel>
-      <CFormInput
-        name="work_place"
-        value={formData.work_place}
-        onChange={handleChange}
-      />
-    </CCol>
+            {/* Work Place */}
+            <CCol xs={12} sm={6} md={4}>
+              <CFormLabel>Work Place</CFormLabel>
+              <CFormInput
+                name="work_place"
+                value={formData.work_place}
+                onChange={handleChange}
+              />
+            </CCol>
 
-    <CCol md={3}>
-      <CFormLabel>Start Date</CFormLabel>
-      <CFormInput
-        type="date"
-        name="start_date"
-        value={formData.start_date}
-        onChange={handleChange}
-      />
-    </CCol>
+            {/* Start Date */}
+            <CCol xs={12} sm={6} md={4}>
+              <CFormLabel>Start Date</CFormLabel>
+              <CFormInput
+                type="date"
+                name="start_date"
+                value={formData.start_date}
+                onChange={handleChange}
+              />
+            </CCol>
 
-    <CCol md={3}>
-      <CFormLabel>End Date</CFormLabel>
-      <CFormInput
-        type="date"
-        name="end_date"
-        value={formData.end_date}
-        onChange={handleChange}
-      />
-    </CCol>
+            {/* End Date */}
+            <CCol xs={12} sm={6} md={4}>
+              <CFormLabel>End Date</CFormLabel>
+              <CFormInput
+                type="date"
+                name="end_date"
+                value={formData.end_date}
+                onChange={handleChange}
+              />
+            </CCol>
 
-    <CCol md={3}>
-      <CFormLabel>GST Number</CFormLabel>
-      <CFormInput
-        name="gst_number"
-        value={formData.gst_number}
-        onChange={handleChange}
-      />
-    </CCol>
+            {/* GST Number */}
+            <CCol xs={12} sm={6} md={4}>
+              <CFormLabel>GST Number</CFormLabel>
+              <CFormInput
+                name="gst_number"
+                value={formData.gst_number}
+                onChange={handleChange}
+              />
+            </CCol>
 
+            {/* PAN Number */}
+            <CCol xs={12} sm={6} md={4}>
+              <CFormLabel>PAN Number</CFormLabel>
+              <CFormInput
+                name="pan_number"
+                value={formData.pan_number}
+                onChange={handleChange}
+              />
+            </CCol>
 
- <CCol md={3}>
-      <CFormLabel>Pan card Number</CFormLabel>
-      <CFormInput
-        name="pan_number"
-        value={formData.pan_number}
-        onChange={handleChange}
-      />
-    </CCol>
+            {/* Commission */}
+            <CCol xs={12} sm={6} md={4}>
+              <CFormLabel>Commission</CFormLabel>
+              <CFormInput
+                type="number"
+                name="commission"
+                value={formData.commission}
+                onChange={handleChange}
+              />
+            </CCol>
 
+            {/* Accountant */}
+            <CCol xs={12} sm={6} md={4}>
+              <CFormLabel>Accountant</CFormLabel>
+              <CFormSelect
+                name="supervisor_id"
+                value={formData.supervisor_id}
+                onChange={handleChange}
+              >
+                <option value="">Select Accountant</option>
+                {accountants.map((acc) => (
+                  <option key={acc.id} value={acc.id}>
+                    {acc.name} ({acc.mobile})
+                  </option>
+                ))}
+              </CFormSelect>
+            </CCol>
 
+            {/* Visible Checkbox */}
+            <CCol xs={12} sm={6} md={4} className="d-flex align-items-end pb-2">
+              <CFormCheck
+                label="Visible"
+                name="is_visible"
+                checked={formData.is_visible}
+                onChange={handleChange}
+              />
+            </CCol>
 
-    <CCol md={3}>
-      <CFormLabel>Commission</CFormLabel>
-      <CFormInput
-        type="number"
-        name="commission"
-        value={formData.commission}
-        onChange={handleChange}
-      />
-    </CCol>
-
-
-    {/* <CCol md={3}>
-  <CFormLabel>Accountant</CFormLabel>
-  <CFormInput
-    type="text"
-    name="supervisor_id"
-    value={orderData?.project?.supervisor?.name || ''}
-       
-  />
-</CCol> */}
-
-<CCol md={3}>
-      <CFormLabel>Accountant</CFormLabel>
-      <CFormSelect
-        name="supervisor_id"
-        value={formData.supervisor_id} // preselect from project
-        onChange={handleChange}
-      >
-        <option value="">Select Accountant</option>
-        {accountants.map((acc) => (
-          <option key={acc.id} value={acc.id}>
-            {acc.name} ({acc.mobile})
-          </option>
-        ))}
-      </CFormSelect>
-    </CCol>
-
-    <CCol md={3} className="d-flex align-items-center">
-      <CFormCheck
-      className='mt-4 me-2'
-        label="Visible"
-        name="is_visible"
-        checked={formData.is_visible}
-        onChange={handleChange}
-      />
-    </CCol>
-
-{/* <CCol md={3}>
-  <CFormLabel>Site Supervisor</CFormLabel>
-  <CFormInput
-    type="text"
-    name="supervisor_id"
-    value={orderData?.project?.supervisor?.name || ''}
-       // only display, not editable
-  />
-</CCol> */}
-
-
-
-
-
-    <CCol md={12}>
-      <CFormLabel>Remark</CFormLabel>
-      <CFormTextarea
-        name="remark"
-        value={formData.remark}
-        onChange={handleChange}
-      />
-    </CCol>
-
-    
-
-    {/* <CCol md={3} className="d-flex align-items-center">
-      <CFormCheck
-        label="Confirmed"
-        name="is_confirm"
-        checked={formData.is_confirm}
-        onChange={handleChange}
-      />
-    </CCol> */}
-  </CRow>
-</CForm>
-
-
+            {/* Remark */}
+            <CCol xs={12}>
+              <CFormLabel>Remark</CFormLabel>
+              <CFormTextarea
+                name="remark"
+                rows={3}
+                value={formData.remark}
+                onChange={handleChange}
+              />
+            </CCol>
+          </CRow>
+        </CForm>
       </CModalBody>
-      <CModalFooter>
-        <CButton color="secondary" onClick={onClose}>Cancel</CButton>
+
+      <CModalFooter className="d-flex gap-2">
+        <CButton color="secondary" onClick={onClose}>
+          Cancel
+        </CButton>
         <CButton color="primary" onClick={handleSubmit} disabled={loading}>
           {loading ? 'Saving...' : 'Save Changes & Convert'}
         </CButton>
       </CModalFooter>
     </CModal>
-
   )
 }
 
