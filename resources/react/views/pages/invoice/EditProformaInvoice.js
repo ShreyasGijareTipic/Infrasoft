@@ -354,12 +354,13 @@ const handleWorkChange = (index, field, value) => {
   const baseAmount = qty * price;
   const halfGST = gstPercent / 2;
 
-  const cgst = baseAmount * (halfGST / 100);
-  const sgst = baseAmount * (halfGST / 100);
+  // ✅ Round to 2 decimal places
+  const cgst = Math.round((baseAmount * (halfGST / 100)) * 100) / 100;
+  const sgst = Math.round((baseAmount * (halfGST / 100)) * 100) / 100;
 
   updated[index].cgst_amount = cgst;
   updated[index].sgst_amount = sgst;
-  updated[index].total_price = baseAmount + cgst + sgst;
+  updated[index].total_price = Math.round((baseAmount + cgst + sgst) * 100) / 100;
 
   setWorks(updated);
   calculateTotals(updated);
@@ -430,20 +431,20 @@ const handleWorkChange = (index, field, value) => {
     // Total after row GST (this is the base for global GST calculation)
     const totalAfterRowGST = currentWorks.reduce((sum, w) => sum + (w.total_price || 0), 0);
     
-    // Apply global GST percentages on top of totalAfterRowGST
-    const globalSGST = totalAfterRowGST * (prev.sgstPercentage / 100);
-    const globalCGST = totalAfterRowGST * (prev.cgstPercentage / 100);
-    const globalIGST = totalAfterRowGST * (prev.igstPercentage / 100);
-    const globalTotalGST = globalSGST + globalCGST + globalIGST;
+    // Apply global GST percentages on top of totalAfterRowGST - ✅ Round to 2 decimals
+    const globalSGST = Math.round((totalAfterRowGST * (prev.sgstPercentage / 100)) * 100) / 100;
+    const globalCGST = Math.round((totalAfterRowGST * (prev.cgstPercentage / 100)) * 100) / 100;
+    const globalIGST = Math.round((totalAfterRowGST * (prev.igstPercentage / 100)) * 100) / 100;
+    const globalTotalGST = Math.round((globalSGST + globalCGST + globalIGST) * 100) / 100;
     
     // Final calculation
-    const beforeDiscount = totalAfterRowGST + globalTotalGST;
-    const finalAmount = beforeDiscount - (prev.discount || 0);
+    const beforeDiscount = Math.round((totalAfterRowGST + globalTotalGST) * 100) / 100;
+    const finalAmount = Math.round((beforeDiscount - (prev.discount || 0)) * 100) / 100;
     
     return {
       ...prev,
-      subtotal: subtotal,              // Base without any GST
-      taxableAmount: totalAfterRowGST, // After row GST, taxable for global GST
+      subtotal: Math.round(subtotal * 100) / 100,              // Base without any GST
+      taxableAmount: Math.round(totalAfterRowGST * 100) / 100, // After row GST, taxable for global GST
       gstAmount: globalTotalGST,       // Only global GST amount
       cgstAmount: globalCGST,          // Only global CGST
       sgstAmount: globalSGST,          // Only global SGST

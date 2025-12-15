@@ -285,7 +285,6 @@ const handleWorkChange = (index, field, value) => {
     updated[index][field] = value === "" ? 0 : parseFloat(value) || 0;
   } 
   else if (field === 'gst_percent') {
-    // ✅ CRITICAL: Keep 0 as 0, don't default to 18
     updated[index].gst_percent = value === "" || value === null || value === undefined 
       ? 0 
       : parseFloat(value) || 0;
@@ -296,17 +295,18 @@ const handleWorkChange = (index, field, value) => {
 
   const qty = updated[index].qty || 0;
   const price = updated[index].price || 0;
-  const gstPercent = updated[index].gst_percent ?? 0; // ✅ Use ?? to preserve 0
+  const gstPercent = updated[index].gst_percent ?? 0;
 
   const baseAmount = qty * price;
   const halfGST = gstPercent / 2;
 
-  const cgst = baseAmount * (halfGST / 100);
-  const sgst = baseAmount * (halfGST / 100);
+  // ✅ Round to 2 decimal places
+  const cgst = Math.round((baseAmount * (halfGST / 100)) * 100) / 100;
+  const sgst = Math.round((baseAmount * (halfGST / 100)) * 100) / 100;
 
   updated[index].cgst_amount = cgst;
   updated[index].sgst_amount = sgst;
-  updated[index].total_price = baseAmount + cgst + sgst;
+  updated[index].total_price = Math.round((baseAmount + cgst + sgst) * 100) / 100;
 
   setWorks(updated);
   calculateTotals(updated);
@@ -369,35 +369,34 @@ const handleWorkChange = (index, field, value) => {
 
  const calculateTotals = (currentWorks) => {
   setForm(prev => {
-    // Calculate base subtotal (without any GST)
+    // Calculate base subtotal
     const subtotal = currentWorks.reduce((sum, w) => sum + (w.qty * w.price), 0);
     
     // Calculate row-level GST totals
     const totalCGST = currentWorks.reduce((sum, w) => sum + (w.cgst_amount || 0), 0);
     const totalSGST = currentWorks.reduce((sum, w) => sum + (w.sgst_amount || 0), 0);
-    const rowLevelGST = totalCGST + totalSGST;
     
-    // Total after row GST (this is the base for global GST calculation)
+    // Total after row GST
     const totalAfterRowGST = currentWorks.reduce((sum, w) => sum + (w.total_price || 0), 0);
     
-    // Apply global GST percentages on top of totalAfterRowGST
-    const globalSGST = totalAfterRowGST * (prev.sgstPercentage / 100);
-    const globalCGST = totalAfterRowGST * (prev.cgstPercentage / 100);
-    const globalIGST = totalAfterRowGST * (prev.igstPercentage / 100);
-    const globalTotalGST = globalSGST + globalCGST + globalIGST;
+    // Apply global GST percentages - ✅ Round to 2 decimals
+    const globalSGST = Math.round((totalAfterRowGST * (prev.sgstPercentage / 100)) * 100) / 100;
+    const globalCGST = Math.round((totalAfterRowGST * (prev.cgstPercentage / 100)) * 100) / 100;
+    const globalIGST = Math.round((totalAfterRowGST * (prev.igstPercentage / 100)) * 100) / 100;
+    const globalTotalGST = Math.round((globalSGST + globalCGST + globalIGST) * 100) / 100;
     
     // Final calculation
-    const beforeDiscount = totalAfterRowGST + globalTotalGST;
-    const finalAmount = beforeDiscount - (prev.discount || 0);
+    const beforeDiscount = Math.round((totalAfterRowGST + globalTotalGST) * 100) / 100;
+    const finalAmount = Math.round((beforeDiscount - (prev.discount || 0)) * 100) / 100;
     
     return {
       ...prev,
-      subtotal: subtotal,              // Base without any GST
-      taxableAmount: totalAfterRowGST, // After row GST, taxable for global GST
-      gstAmount: globalTotalGST,       // Only global GST amount
-      cgstAmount: globalCGST,          // Only global CGST
-      sgstAmount: globalSGST,          // Only global SGST
-      igstAmount: globalIGST,          // Only global IGST
+      subtotal: Math.round(subtotal * 100) / 100,
+      taxableAmount: Math.round(totalAfterRowGST * 100) / 100,
+      gstAmount: globalTotalGST,
+      cgstAmount: globalCGST,
+      sgstAmount: globalSGST,
+      igstAmount: globalIGST,
       finalAmount: finalAmount,
     };
   });
@@ -901,7 +900,7 @@ const handleWorkChange = (index, field, value) => {
                     />
                     <CInputGroupText>%</CInputGroupText>
                   </CInputGroup>
-                  <small className="text-muted">Amount: ₹{form.gstAmount}</small>
+                  <small className="text-muted">Amount: ₹{form.gstAmount.toFixed(2)}</small>
                 </CCol>
                 <CCol md={3}>
                   <CFormLabel>SGST (%)</CFormLabel>
@@ -917,7 +916,7 @@ const handleWorkChange = (index, field, value) => {
                     />
                     <CInputGroupText>%</CInputGroupText>
                   </CInputGroup>
-                  <small className="text-muted">Amount: ₹{form.sgstAmount}</small>
+                  <small className="text-muted">Amount: ₹{form.sgstAmount.toFixed(2)}</small>
                 </CCol>
                 <CCol md={3}>
                   <CFormLabel>CGST (%)</CFormLabel>
@@ -933,7 +932,7 @@ const handleWorkChange = (index, field, value) => {
                     />
                     <CInputGroupText>%</CInputGroupText>
                   </CInputGroup>
-                  <small className="text-muted">Amount: ₹{form.cgstAmount}</small>
+                  <small className="text-muted">Amount: ₹{form.cgstAmount.toFixed(2)}</small>
                 </CCol>
                 <CCol md={3}>
                   <CFormLabel>IGST (%)</CFormLabel>
@@ -949,7 +948,7 @@ const handleWorkChange = (index, field, value) => {
                     />
                     <CInputGroupText>%</CInputGroupText>
                   </CInputGroup>
-                  <small className="text-muted">Amount: ₹{form.igstAmount}</small>
+                  <small className="text-muted">Amount: ₹{form.igstAmount.toFixed(2)}</small>
                 </CCol>
               </CRow>
 
