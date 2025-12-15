@@ -78,10 +78,7 @@ class ProjectSummaryController extends Controller
                 ->sum('expenses.total_price');
 
             // Extra billing from project table
-            $extraBilling = 0;
-            if (isset($project->extra_billing)) {
-                $extraBilling = $project->extra_billing;
-            }
+            $extraBilling = $project->extra_billing ?? 0;
 
             // ---------- Total Expenses ----------
             $totalExpenses = $transport + $otherBilling + $diesel + $extraBilling;
@@ -101,16 +98,15 @@ class ProjectSummaryController extends Controller
                     'amount' => (float) $item->total
                 ]);
 
-            // ---------- Orders Data (Revenue) ----------
-            // FIXED: Use finalAmount instead of totalAmount (finalAmount includes tax)
-            // FIXED: Use finalAmount instead of totalAmount (finalAmount includes tax)
+            // ---------- Orders Data (Revenue from Orders Table) ----------
+            // Total Amount = finalAmount (includes tax)
+            // Paid Amount = paidAmount
+            // Pending Amount = finalAmount - paidAmount
             $ordersData = Order::where('company_id', $companyId)
                 ->where('project_id', $project->id)
                 ->selectRaw('
                     SUM(finalAmount) as total_amount,
-                    SUM(finalAmount) as total_amount,
                     SUM(paidAmount) as paid_amount,
-                    SUM(finalAmount - paidAmount) as pending_amount
                     SUM(finalAmount - paidAmount) as pending_amount
                 ')
                 ->first();
@@ -119,31 +115,20 @@ class ProjectSummaryController extends Controller
             $paidAmount = $ordersData->paid_amount ?? 0;
             $pendingAmount = $ordersData->pending_amount ?? 0;
 
-           // ---------- Income (payment received - for display only) ----------
-        $paidAmount = Income::where('company_id', $companyId)
-            ->where('project_id', $project->id)
-            ->sum('received_amount');
-
-        $pendingAmount = Income::where('company_id', $companyId)
-            ->where('project_id', $project->id)
-            ->sum('pending_amount');
-
-        // Total invoice amount should match paid + pending
-        $totalInvoiceAmount = $paidAmount + $pendingAmount;
-
-        $receiverBanks = Income::select('receivers_bank', DB::raw('SUM(received_amount) as amount'))
-            ->where('company_id', $companyId)
-            ->where('project_id', $project->id)
-            ->groupBy('receivers_bank')
-            ->get()
-            ->map(fn($r) => [
-                'bank_name' => $r->receivers_bank,
-                'amount'    => (float) $r->amount
-            ]);
+            // ---------- Income (Bank-wise payment tracking ONLY) ----------
+            // This is only for showing which bank account received payments
+            $receiverBanks = Income::select('receivers_bank', DB::raw('SUM(received_amount) as amount'))
+                ->where('company_id', $companyId)
+                ->where('project_id', $project->id)
+                ->groupBy('receivers_bank')
+                ->get()
+                ->map(fn($r) => [
+                    'bank_name' => $r->receivers_bank,
+                    'amount' => (float) $r->amount
+                ]);
 
             // ---------- Profit / Loss Calculation ----------
-            // Profit/Loss = Total Order Amount (with tax) - Total Expenses
-            // Profit/Loss = Total Order Amount (with tax) - Total Expenses
+            // Profit/Loss = Total Order Amount (finalAmount with tax) - Total Expenses
             $profitLoss = $totalAmount - $totalExpenses;
             $isProfit = $profitLoss >= 0;
 
@@ -163,8 +148,7 @@ class ProjectSummaryController extends Controller
                 'avg_survey_rate' => (float) $avgSurveyRate,
                 'total_survey_billing_amount' => (float) $totalSurveyBilling,
 
-                // Revenue from Orders (FIXED: now using finalAmount)
-                // Revenue from Orders (FIXED: now using finalAmount)
+                // Revenue from Orders (finalAmount includes tax)
                 'total_amount' => (float) $totalAmount,
                 'paid_amount' => (float) $paidAmount,
                 'pending_amount' => (float) $pendingAmount,
@@ -176,15 +160,14 @@ class ProjectSummaryController extends Controller
                 'extra_billing' => (float) $extraBilling,
                 'total_expenses' => (float) $totalExpenses,
 
-                // Receiver banks (bank-wise payment tracking)
-                // Receiver banks (bank-wise payment tracking)
+                // Receiver banks (bank-wise payment tracking from Income table)
                 'receiver_banks' => $receiverBanks,
 
                 // Profit/Loss calculation
                 'profit_or_loss' => (float) $profitLoss,
                 'is_profit' => $isProfit,
                 
-                // Additional helpful fields
+                // Additional calculation details
                 'calculation_details' => [
                     'revenue' => (float) $totalAmount,
                     'expenses' => (float) $totalExpenses,
