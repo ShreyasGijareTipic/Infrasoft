@@ -103,11 +103,14 @@ class ProjectSummaryController extends Controller
 
             // ---------- Orders Data (Revenue) ----------
             // FIXED: Use finalAmount instead of totalAmount (finalAmount includes tax)
+            // FIXED: Use finalAmount instead of totalAmount (finalAmount includes tax)
             $ordersData = Order::where('company_id', $companyId)
                 ->where('project_id', $project->id)
                 ->selectRaw('
                     SUM(finalAmount) as total_amount,
+                    SUM(finalAmount) as total_amount,
                     SUM(paidAmount) as paid_amount,
+                    SUM(finalAmount - paidAmount) as pending_amount
                     SUM(finalAmount - paidAmount) as pending_amount
                 ')
                 ->first();
@@ -140,6 +143,7 @@ class ProjectSummaryController extends Controller
 
             // ---------- Profit / Loss Calculation ----------
             // Profit/Loss = Total Order Amount (with tax) - Total Expenses
+            // Profit/Loss = Total Order Amount (with tax) - Total Expenses
             $profitLoss = $totalAmount - $totalExpenses;
             $isProfit = $profitLoss >= 0;
 
@@ -160,6 +164,7 @@ class ProjectSummaryController extends Controller
                 'total_survey_billing_amount' => (float) $totalSurveyBilling,
 
                 // Revenue from Orders (FIXED: now using finalAmount)
+                // Revenue from Orders (FIXED: now using finalAmount)
                 'total_amount' => (float) $totalAmount,
                 'paid_amount' => (float) $paidAmount,
                 'pending_amount' => (float) $pendingAmount,
@@ -171,6 +176,7 @@ class ProjectSummaryController extends Controller
                 'extra_billing' => (float) $extraBilling,
                 'total_expenses' => (float) $totalExpenses,
 
+                // Receiver banks (bank-wise payment tracking)
                 // Receiver banks (bank-wise payment tracking)
                 'receiver_banks' => $receiverBanks,
 
