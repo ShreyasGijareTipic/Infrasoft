@@ -79,7 +79,7 @@ const EditProformaInvoice = () => {
     fetchRules()
   }, [id])
 
-  const fetchProformaInvoice = async () => {
+const fetchProformaInvoice = async () => {
   try {
     setLoading(true)
     const response = await getAPICall(`/api/proforma-invoices/${id}`)
@@ -88,21 +88,20 @@ const EditProformaInvoice = () => {
       const data = response.data
       setProformaData(data)
 
-      // Set work items with proper GST handling FIRST
+      // ✅ Set work items with proper GST handling FIRST
       let mappedWorks = []
       if (data.details && data.details.length > 0) {
         mappedWorks = data.details.map(item => {
-          // Parse values, explicitly handling 0 as valid
+          // Parse values
           const qty = parseFloat(item.qty) || 0
           const price = parseFloat(item.price) || 0
           const totalPrice = parseFloat(item.total_price) || 0
           
-          // Handle GST percent - allow 0 as valid value
+          // ✅ Handle GST percent - allow 0 as valid value
           let gstPercent = 0
           if (item.gst_percent !== null && item.gst_percent !== undefined) {
             gstPercent = parseFloat(item.gst_percent)
-            // If parseFloat returns NaN, default to 0
-            if (isNaN(gstPercent)) gstPercent = 0
+            if (isNaN(gstPercent)) gstPercent = 0  // ✅ Default to 0, not 18
           }
           
           // Handle CGST amount
@@ -125,7 +124,7 @@ const EditProformaInvoice = () => {
             qty: qty,
             price: price,
             total_price: totalPrice,
-            gst_percent: gstPercent,
+            gst_percent: gstPercent,    // ✅ Preserve actual GST %
             cgst_amount: cgstAmount,
             sgst_amount: sgstAmount,
             remark: item.remark || '',
@@ -153,7 +152,7 @@ const EditProformaInvoice = () => {
       const rowLevelGST = totalCGST + totalSGST
       const totalAfterRowGST = mappedWorks.reduce((sum, w) => sum + (w.total_price || 0), 0)
       
-      // Get global GST percentages from data
+      // ✅ Get global GST percentages from data (default to 0)
       const gstPercentage = parseFloat(data.gst_percentage) || 0
       const sgstPercentage = parseFloat(data.sgst_percentage) || 0
       const cgstPercentage = parseFloat(data.cgst_percentage) || 0
@@ -183,10 +182,10 @@ const EditProformaInvoice = () => {
         cgstAmount: globalCGST,
         igstAmount: globalIGST,
         finalAmount: finalAmount,
-        gstPercentage: gstPercentage,
-        sgstPercentage: sgstPercentage,
-        cgstPercentage: cgstPercentage,
-        igstPercentage: igstPercentage,
+        gstPercentage: gstPercentage,     // ✅ Use actual GST %
+        sgstPercentage: sgstPercentage,   // ✅ Use actual SGST %
+        cgstPercentage: cgstPercentage,   // ✅ Use actual CGST %
+        igstPercentage: igstPercentage,   // ✅ Use actual IGST %
         notes: data.notes || '',
         status: data.status || 'draft',
         terms_conditions: data.terms_conditions || '',

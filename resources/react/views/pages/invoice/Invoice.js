@@ -440,8 +440,8 @@ const addWorkRow = () => {
       uom: '',
       qty: 0,
       price: 0,
-      total_price: 0,           // will include GST after entry
-      gst_percent: 18,          // default 18%
+      total_price: 0,
+      gst_percent: 0,  // ✅ Default to 0
       cgst_amount: 0,
       sgst_amount: 0,
       remark: ''

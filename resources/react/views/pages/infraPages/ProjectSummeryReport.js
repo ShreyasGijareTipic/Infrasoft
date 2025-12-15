@@ -1437,7 +1437,7 @@ const ProjectSummary = () => {
                 </CCardBody>
               </CCard>
 
-              {/* Profit/Loss - Enhanced Display */}
+              {/* Profit/Loss - Enhanced Display with Equal Width Columns */}
               <CCard
                 className="mb-4 border-0"
                 color={currentProject.is_profit ? "success" : "danger"}
@@ -1449,19 +1449,19 @@ const ProjectSummary = () => {
                   <h5 className={`${currentProject.is_profit ? 'text-success' : 'text-danger'} mb-3`}>
                     {currentProject.is_profit ? '💰 Profit' : '📉 Loss'}
                   </h5>
-                  <CRow className="g-3 justify-content-center">
-                    <CCol lg={4} md={6} sm={12}>
-                      <CFormLabel className="fs-6 fw-bold">Total Revenue (with GST)</CFormLabel>
+                  <CRow className="g-3">
+                    <CCol lg={4} md={4} sm={12}>
+                      <CFormLabel className="fs-6 fw-bold">Total Amount</CFormLabel>
                       <CInputGroup>
                         <CInputGroupText className="bg-info text-white">₹</CInputGroupText>
                         <CFormInput
-                          value={formatIndianCurrency(currentProject.total_bill)}
+                          value={formatIndianCurrency(currentProject.total_amount)}
                           readOnly
                           className="bg-white fw-bold text-info"
                         />
                       </CInputGroup>
                     </CCol>
-                    <CCol lg={4} md={6} sm={12}>
+                    <CCol lg={4} md={4} sm={12}>
                       <CFormLabel className="fs-6 fw-bold">Total Expenses</CFormLabel>
                       <CInputGroup>
                         <CInputGroupText className="bg-warning text-dark">₹</CInputGroupText>
@@ -1472,11 +1472,11 @@ const ProjectSummary = () => {
                         />
                       </CInputGroup>
                     </CCol>
-                    <CCol lg={4} md={12} sm={12}>
-                      <CFormLabel className="fs-5 fw-bold">
+                    <CCol lg={4} md={4} sm={12}>
+                      <CFormLabel className="fs-6 fw-bold">
                         {currentProject.is_profit ? 'Net Profit' : 'Net Loss'}
                       </CFormLabel>
-                      <CInputGroup size="lg">
+                      <CInputGroup>
                         <CInputGroupText
                           className={currentProject.is_profit ? 'bg-success text-white' : 'bg-danger text-white'}
                         >
@@ -1485,7 +1485,7 @@ const ProjectSummary = () => {
                         <CFormInput
                           value={formatIndianCurrency(Math.abs(currentProject.profit_or_loss))}
                           readOnly
-                          className={`bg-white fw-bold fs-4 text-center ${
+                          className={`bg-white fw-bold ${
                             currentProject.is_profit ? 'text-success' : 'text-danger'
                           }`}
                         />
@@ -1495,46 +1495,15 @@ const ProjectSummary = () => {
                 </CCardBody>
               </CCard>
 
-              {/* Payment Received in Account */}
-              <CCard className="mb-4 border-0" color="secondary" textColor="dark">
-                <CCardBody className="bg-secondary-subtle rounded">
-                  <h5 className="text-secondary mb-3">Payment Received in Account</h5>
-                  <CRow className="g-3">
-                    {currentProject.receiver_banks && currentProject.receiver_banks.length > 0 ? (
-                      currentProject.receiver_banks.map((bank, index) => (
-                        <CCol xl={4} lg={6} md={6} sm={12} key={index}>
-                          <CFormLabel>{bank.bank_name}</CFormLabel>
-                          <CInputGroup>
-                            <CInputGroupText>₹</CInputGroupText>
-                            <CFormInput
-                              value={formatIndianCurrency(bank.amount)}
-                              readOnly
-                              className="bg-white fw-bold"
-                            />
-                          </CInputGroup>
-                        </CCol>
-                      ))
-                    ) : (
-                      <CCol xs={12}>
-                        <p className="text-muted text-center mb-0">No bank payments recorded</p>
-                      </CCol>
-                    )}
-                  </CRow>
-                </CCardBody>
-              </CCard>
-
               {/* Payment Details */}
               <CCard className="mb-4 border-0" color="info" textColor="dark">
                 <CCardBody className="bg-info-subtle rounded">
                   <div className="d-flex gap-4 mb-3">
-                    <h5 className="text-info mb-0">Payment / Invoice Details</h5>
+                    <h5 className="text-info mb-0">Payment / Order Details</h5>
                     <h5 className="text-dark mb-0">
                       ( Total:
                       <span className="text-info fw-bold ms-1">
-                        {formatIndianCurrency(
-                          Number(currentProject.paid_amount) +
-                          Number(currentProject.pending_amount)
-                        )}
+                        {formatIndianCurrency(currentProject.total_amount)}
                       </span> )
                     </h5>
                   </div>
@@ -1565,6 +1534,7 @@ const ProjectSummary = () => {
                 </CCardBody>
               </CCard>
 
+              {/* Work Done - DTH and Survey Points (No Billing Amounts) */}
               <CCard className="mb-4 border-0" color="success" textColor="dark">
                 <CCardBody className="bg-success-subtle rounded">
                   <h5 className="text-success mb-4">Work Done</h5>
@@ -1573,7 +1543,7 @@ const ProjectSummary = () => {
                   <div className="mb-4">
                     <h6 className="text-success mb-3">DTH Work</h6>
                     <CRow className="g-3">
-                      <CCol xl={4} lg={4} md={6} sm={12}>
+                      <CCol lg={4} md={4} sm={12}>
                         <CFormLabel>Total DTH Points</CFormLabel>
                         <CFormInput
                           value={formatNumber(currentProject.total_dth_points)}
@@ -1581,7 +1551,7 @@ const ProjectSummary = () => {
                           className="bg-white fw-bold text-center"
                         />
                       </CCol>
-                      <CCol xl={4} lg={4} md={6} sm={12}>
+                      <CCol lg={4} md={4} sm={12}>
                         <CFormLabel>Average Rate per Point</CFormLabel>
                         <CInputGroup>
                           <CInputGroupText>₹</CInputGroupText>
@@ -1592,7 +1562,7 @@ const ProjectSummary = () => {
                           />
                         </CInputGroup>
                       </CCol>
-                      <CCol xl={4} lg={4} md={12} sm={12}>
+                      <CCol lg={4} md={4} sm={12}>
                         <CFormLabel>Total DTH Billing</CFormLabel>
                         <CInputGroup>
                           <CInputGroupText className="bg-success text-white">₹</CInputGroupText>
@@ -1610,7 +1580,7 @@ const ProjectSummary = () => {
                   <div>
                     <h6 className="text-success mb-3">Survey Work</h6>
                     <CRow className="g-3">
-                      <CCol xl={4} lg={4} md={6} sm={12}>
+                      <CCol lg={4} md={4} sm={12}>
                         <CFormLabel>Total Survey Points</CFormLabel>
                         <CFormInput
                           value={formatNumber(currentProject.total_survey_points)}
@@ -1618,7 +1588,7 @@ const ProjectSummary = () => {
                           className="bg-white fw-bold text-center"
                         />
                       </CCol>
-                      <CCol xl={4} lg={4} md={6} sm={12}>
+                      <CCol lg={4} md={4} sm={12}>
                         <CFormLabel>Average Rate per Point</CFormLabel>
                         <CInputGroup>
                           <CInputGroupText>₹</CInputGroupText>
@@ -1629,7 +1599,7 @@ const ProjectSummary = () => {
                           />
                         </CInputGroup>
                       </CCol>
-                      <CCol xl={4} lg={4} md={12} sm={12}>
+                      <CCol lg={4} md={4} sm={12}>
                         <CFormLabel>Total Survey Billing</CFormLabel>
                         <CInputGroup>
                           <CInputGroupText className="bg-success text-white">₹</CInputGroupText>
@@ -1642,48 +1612,6 @@ const ProjectSummary = () => {
                       </CCol>
                     </CRow>
                   </div>
-                </CCardBody>
-              </CCard>
-
-              {/* Final Billing */}
-              <CCard className="mb-4 border-0" color="secondary" textColor="dark">
-                <CCardBody className="bg-secondary-subtle rounded">
-                  <h5 className="text-secondary mb-3">Final Billing</h5>
-                  <CRow className="g-3">
-                    <CCol xl={4} lg={6} md={12}>
-                      <CFormLabel>Amount Before GST</CFormLabel>
-                      <CInputGroup>
-                        <CInputGroupText>₹</CInputGroupText>
-                        <CFormInput
-                          value={formatIndianCurrency(currentProject.final_bill)}
-                          readOnly
-                          className="bg-white fw-bold"
-                        />
-                      </CInputGroup>
-                    </CCol>
-                    <CCol xl={4} lg={6} md={12}>
-                      <CFormLabel>GST (18%)</CFormLabel>
-                      <CInputGroup>
-                        <CInputGroupText>₹</CInputGroupText>
-                        <CFormInput
-                          value={formatIndianCurrency(currentProject.gst_bill)}
-                          readOnly
-                          className="bg-white fw-bold"
-                        />
-                      </CInputGroup>
-                    </CCol>
-                    <CCol xl={4} lg={12} md={12}>
-                      <CFormLabel>Total Bill (with GST)</CFormLabel>
-                      <CInputGroup>
-                        <CInputGroupText className="bg-secondary text-white">₹</CInputGroupText>
-                        <CFormInput
-                          value={formatIndianCurrency(currentProject.total_bill)}
-                          readOnly
-                          className="bg-white fw-bold text-secondary"
-                        />
-                      </CInputGroup>
-                    </CCol>
-                  </CRow>
                 </CCardBody>
               </CCard>
 

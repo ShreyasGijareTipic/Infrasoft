@@ -129,33 +129,34 @@ const CreateProformaInvoice = () => {
   // Load work order data
   useEffect(() => {
   if (workOrderData) {
-    // Calculate global GST percentages from workOrderData if available
-    let globalGstPercentage = 18
-    let globalSgstPercentage = 9
-    let globalCgstPercentage = 9
-    let globalIgstPercentage = 0
+    // ✅ FIX: Calculate GST percentages from order amounts
+    let globalGstPercentage = 0;
+    let globalSgstPercentage = 0;
+    let globalCgstPercentage = 0;
+    let globalIgstPercentage = 0;
     
-    // Check if workOrderData has GST amounts to calculate percentages
-    if (workOrderData.totalAmount) {
-      const totalAmount = parseFloat(workOrderData.totalAmount) || 0
-      const gstAmt = parseFloat(workOrderData.gst) || 0
-      const sgstAmt = parseFloat(workOrderData.sgst) || 0
-      const cgstAmt = parseFloat(workOrderData.cgst) || 0
-      const igstAmt = parseFloat(workOrderData.igst) || 0
-      
-      if (totalAmount > 0) {
-        if (gstAmt > 0) {
-          globalGstPercentage = Math.round((gstAmt / totalAmount) * 100 * 100) / 100
-        }
-        if (sgstAmt > 0) {
-          globalSgstPercentage = Math.round((sgstAmt / totalAmount) * 100 * 100) / 100
-        }
-        if (cgstAmt > 0) {
-          globalCgstPercentage = Math.round((cgstAmt / totalAmount) * 100 * 100) / 100
-        }
-        if (igstAmt > 0) {
-          globalIgstPercentage = Math.round((igstAmt / totalAmount) * 100 * 100) / 100
-        }
+    // Get amounts from order
+    const totalAmount = parseFloat(workOrderData.totalAmount) || 0;
+    const cgstAmount = parseFloat(workOrderData.cgst) || 0;
+    const sgstAmount = parseFloat(workOrderData.sgst) || 0;
+    const igstAmount = parseFloat(workOrderData.igst) || 0;
+    const gstAmount = parseFloat(workOrderData.gst) || 0;
+    
+    // ✅ Calculate percentages from amounts (if totalAmount > 0)
+    if (totalAmount > 0) {
+      if (cgstAmount > 0) {
+        globalCgstPercentage = Math.round((cgstAmount / totalAmount) * 100 * 100) / 100;
+      }
+      if (sgstAmount > 0) {
+        globalSgstPercentage = Math.round((sgstAmount / totalAmount) * 100 * 100) / 100;
+      }
+      if (igstAmount > 0) {
+        globalIgstPercentage = Math.round((igstAmount / totalAmount) * 100 * 100) / 100;
+      }
+      if (gstAmount > 0) {
+        globalGstPercentage = Math.round((gstAmount / totalAmount) * 100 * 100) / 100;
+      } else {
+        globalGstPercentage = globalCgstPercentage + globalSgstPercentage + globalIgstPercentage;
       }
     }
     
@@ -163,37 +164,37 @@ const CreateProformaInvoice = () => {
       ...prev,
       work_order_id: workOrderData.id,
       project_id: workOrderData.project_id,
-      gstPercentage: globalGstPercentage,
-      sgstPercentage: globalSgstPercentage,
-      cgstPercentage: globalCgstPercentage,
-      igstPercentage: globalIgstPercentage,
+      gstPercentage: globalGstPercentage,      // ✅ Calculated GST %
+      sgstPercentage: globalSgstPercentage,    // ✅ Calculated SGST %
+      cgstPercentage: globalCgstPercentage,    // ✅ Calculated CGST %
+      igstPercentage: globalIgstPercentage,    // ✅ Calculated IGST %
     }))
 
     if (workOrderData.items && workOrderData.items.length > 0) {
       const loadedWorks = workOrderData.items.map(item => {
-        // Parse values
-        const qty = parseFloat(item.qty) || 0
-        const price = parseFloat(item.price) || 0
-        const cgstAmount = parseFloat(item.cgst_amount) || 0
-        const sgstAmount = parseFloat(item.sgst_amount) || 0
-        const totalPrice = parseFloat(item.total_price) || 0
+        const qty = parseFloat(item.qty) || 0;
+        const price = parseFloat(item.price) || 0;
+        const totalPrice = parseFloat(item.total_price) || 0;
         
-        // Calculate GST percentage from amounts if not provided
-        let gstPercent = 0
-        
-        // If gst_percent is explicitly provided, use it
+        // ✅ Get GST % from order_details.gst_percent
+        let gstPercent = 0;
         if (item.gst_percent !== null && item.gst_percent !== undefined) {
-          gstPercent = parseFloat(item.gst_percent)
-        } 
-        // Otherwise, calculate from amounts (for Orders table data that doesn't have gst_percent)
-        else {
-          const baseAmount = qty * price
-          if (baseAmount > 0 && (cgstAmount > 0 || sgstAmount > 0)) {
-            // Calculate percentage: (total GST / base) * 100
-            const totalGstAmount = cgstAmount + sgstAmount
-            gstPercent = Math.round((totalGstAmount / baseAmount) * 100 * 100) / 100
+          gstPercent = parseFloat(item.gst_percent);
+          if (isNaN(gstPercent)) gstPercent = 0;
+        } else {
+          // ✅ Fallback: Calculate from cgst_amount + sgst_amount
+          const itemCgst = parseFloat(item.cgst_amount) || 0;
+          const itemSgst = parseFloat(item.sgst_amount) || 0;
+          const baseAmount = qty * price;
+          
+          if (baseAmount > 0 && (itemCgst > 0 || itemSgst > 0)) {
+            const totalGstAmount = itemCgst + itemSgst;
+            gstPercent = Math.round((totalGstAmount / baseAmount) * 100 * 100) / 100;
           }
         }
+        
+        const cgstAmount = parseFloat(item.cgst_amount) || 0;
+        const sgstAmount = parseFloat(item.sgst_amount) || 0;
         
         return {
           work_type: item.work_type || '',
@@ -202,7 +203,7 @@ const CreateProformaInvoice = () => {
           price: price,
           total_price: totalPrice,
           remark: item.remark || '',
-          gst_percent: gstPercent,
+          gst_percent: gstPercent,    // ✅ Use actual or calculated GST %
           cgst_amount: cgstAmount,
           sgst_amount: sgstAmount,
         }
@@ -284,7 +285,7 @@ const handleWorkChange = (index, field, value) => {
     updated[index][field] = value === "" ? 0 : parseFloat(value) || 0;
   } 
   else if (field === 'gst_percent') {
-    // CRITICAL: Keep 0 as 0, don't default to 18
+    // ✅ CRITICAL: Keep 0 as 0, don't default to 18
     updated[index].gst_percent = value === "" || value === null || value === undefined 
       ? 0 
       : parseFloat(value) || 0;
@@ -295,7 +296,7 @@ const handleWorkChange = (index, field, value) => {
 
   const qty = updated[index].qty || 0;
   const price = updated[index].price || 0;
-  const gstPercent = updated[index].gst_percent ?? 0; // Use ?? to preserve 0
+  const gstPercent = updated[index].gst_percent ?? 0; // ✅ Use ?? to preserve 0
 
   const baseAmount = qty * price;
   const halfGST = gstPercent / 2;
@@ -328,7 +329,7 @@ const handleWorkChange = (index, field, value) => {
       qty: 0,
       price: 0,
       total_price: 0,
-      gst_percent: 18,
+      gst_percent: 0,      // ✅ NEW - default to 0, not 18
       cgst_amount: 0,
       sgst_amount: 0,
       remark: ''
