@@ -395,6 +395,18 @@ Thank you!`)
                       <td colSpan={showRowGST ? "10" : "6"} className="text-center">No work details available</td>
                     </tr>
                   )}
+                  
+                  {/* Total Row */}
+                  {formData.items && formData.items.length > 0 && (
+                    <tr className="table-warning fw-bold">
+                      <td colSpan={showRowGST ? "5" : "4"} className="text-end">Total:</td>
+                      {showRowGST && <td>₹{displayTotals.subtotalWithoutGST.toFixed(2)}</td>}
+                      {showRowGST && <td>-</td>}
+                      {showRowGST && <td>₹{displayTotals.rowCGST.toFixed(2)}</td>}
+                      {showRowGST && <td>₹{displayTotals.rowSGST.toFixed(2)}</td>}
+                      <td>₹{displayTotals.totalAfterRowGST.toFixed(2)}</td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>

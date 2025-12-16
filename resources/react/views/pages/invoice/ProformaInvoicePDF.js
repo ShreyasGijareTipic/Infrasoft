@@ -178,8 +178,8 @@ export const generateProformaInvoicePDF = async (
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: Arial, sans-serif; font-size: 11px; }
     .invoice-box { 
-      padding: 15px; 
-      border: 2px solid #000; 
+      padding: 20px; 
+      border: 3px solid #000; 
       page-break-after: always;
     }
     table { width: 100%; border-collapse: collapse; }
@@ -325,6 +325,16 @@ export const generateProformaInvoicePDF = async (
             </tr>
           `
         }).join('')}
+        ${sortedDetails.length > 0 ? `
+        <tr style="background: #fff3cd; font-weight: bold;">
+          <td colspan="${hasRowGST ? '5' : '4'}" class="text-right">Total:</td>
+          ${hasRowGST ? `<td class="text-right">₹${sortedDetails.reduce((sum, item) => sum + ((parseFloat(item.qty) || 0) * (parseFloat(item.price) || 0)), 0).toFixed(2)}</td>` : ''}
+          ${hasRowGST ? `<td class="text-center">-</td>` : ''}
+          ${hasRowGST ? `<td class="text-right">₹${sortedDetails.reduce((sum, item) => sum + (parseFloat(item.cgst_amount) || 0), 0).toFixed(2)}</td>` : ''}
+          ${hasRowGST ? `<td class="text-right">₹${sortedDetails.reduce((sum, item) => sum + (parseFloat(item.sgst_amount) || 0), 0).toFixed(2)}</td>` : ''}
+          <td class="text-right">₹${totalAfterRowGST.toFixed(2)}</td>
+        </tr>
+        ` : ''}
       </tbody>
     </table>
 
@@ -400,8 +410,8 @@ export const generateProformaInvoicePDF = async (
     ` : ''}
 
     <div class="footer-bar">
-      <span>✉️ ${user?.company_info?.email_id || 'email@company.com'}</span>
-      <span>🌐 www.yourcompany.com</span>
+      <span>✉️ deshmukhinfra@gmail.com</span>
+      <span>🌐 www.deshmukhinfrasolutions.com</span>
     </div>
 
     <div class="text-center" style="font-size: 9px; margin-top: 5px;">${labels.footer}</div>
@@ -439,8 +449,8 @@ export const generateProformaInvoicePDF = async (
     ` : ''}
 
     <div class="footer-bar">
-      <span>✉️ ${user?.company_info?.email_id || 'email@company.com'}</span>
-      <span>🌐 www.yourcompany.com</span>
+      <span>✉️ deshmukhinfra@gmail.com</span>
+      <span>🌐 www.deshmukhinfrasolutions.com</span>
     </div>
   </div>
   ` : ''}

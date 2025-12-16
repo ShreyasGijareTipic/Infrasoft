@@ -1093,7 +1093,7 @@ const calculateTotals = (currentWorks) => {
   </div>
 </div>
 
-<CRow className="mb-3">
+{/* <CRow className="mb-3">
   <CCol md={4}>
     <CFormLabel>Subtotal</CFormLabel>
     <CInputGroup>
@@ -1115,7 +1115,7 @@ const calculateTotals = (currentWorks) => {
       <CFormInput type="number" value={Number(form.gstAmount || 0).toFixed(2)} readOnly />
     </CInputGroup>
   </CCol>
-</CRow>
+</CRow> */}
 <CRow className="mb-3">
   <CCol md={6}>
     <CFormLabel>Final Amount</CFormLabel>

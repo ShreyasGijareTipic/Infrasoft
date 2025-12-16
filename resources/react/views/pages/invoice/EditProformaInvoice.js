@@ -1014,7 +1014,7 @@ const handleWorkChange = (index, field, value) => {
               {/* Financial Summary */}
               <CRow className="mb-3">
                 <CCol md={3}>
-                  <CFormLabel>Subtotal</CFormLabel>
+                  <CFormLabel>Total Amount before GST</CFormLabel>
                   <CInputGroup>
                     <CInputGroupText>₹</CInputGroupText>
                     <CFormInput
@@ -1038,7 +1038,7 @@ const handleWorkChange = (index, field, value) => {
                     />
                   </CInputGroup>
                 </CCol>
-                <CCol md={3}>
+                {/* <CCol md={3}>
                   <CFormLabel>Taxable Amount</CFormLabel>
                   <CInputGroup>
                     <CInputGroupText>₹</CInputGroupText>
@@ -1048,9 +1048,9 @@ const handleWorkChange = (index, field, value) => {
                       readOnly
                     />
                   </CInputGroup>
-                </CCol>
+                </CCol> */}
                 <CCol md={3}>
-                  <CFormLabel>Final Amount</CFormLabel>
+                  <CFormLabel>Total Amount after GST</CFormLabel>
                   <CInputGroup>
                     <CInputGroupText>₹</CInputGroupText>
                     <CFormInput

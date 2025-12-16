@@ -231,58 +231,66 @@ const ProformaInvoiceDetails = () => {
       <CCard>
         <CCardHeader>
           <div className="d-flex justify-content-between align-items-center">
-            <h5>Proforma Invoice {proformaInvoice.proforma_invoice_number}</h5>
-            <div>
-              <CBadge color={statusBadge.color} className="me-2">
-                {statusBadge.text}
-              </CBadge>
-              <CButton
-                color="secondary"
-                size="sm"
-                onClick={() => navigate('/invoiceTable')}
-              >
-                <CIcon icon={cilArrowLeft} className="me-1" />
-                Back
-              </CButton>
-            </div>
+            <h5 className="mb-0">Proforma Invoice Details</h5>
+            <CBadge color={statusBadge.color} size="lg">
+              {statusBadge.text}
+            </CBadge>
           </div>
         </CCardHeader>
+
         <CCardBody>
-          {/* Invoice Info */}
-          <div className="row section mb-4">
+          {/* Invoice Header Section */}
+          <div className="row mb-4">
             <div className="col-md-6">
-              <h6>Invoice Information</h6>
-              <p><strong>Proforma Invoice #:</strong> {proformaInvoice.proforma_invoice_number}</p>
-              {proformaInvoice.tally_invoice_number && (
-                <p><strong>Tally Invoice #:</strong> {proformaInvoice.tally_invoice_number}</p>
-              )}
-              <p><strong>Invoice Date:</strong> {new Date(proformaInvoice.invoice_date).toLocaleDateString()}</p>
-              {proformaInvoice.delivery_date && (
-                <p><strong>Delivery Date:</strong> {new Date(proformaInvoice.delivery_date).toLocaleDateString()}</p>
+              <h6 className="fw-bold text-primary">Bill To:</h6>
+              <p className="mb-1">
+                <strong>Name:</strong> {proformaInvoice.project?.customer_name || 'N/A'}
+              </p>
+              <p className="mb-1">
+                <strong>Address:</strong> {proformaInvoice.project?.work_place || 'N/A'}
+              </p>
+              <p className="mb-1">
+                <strong>Mobile:</strong> {proformaInvoice.project?.mobile_number || 'N/A'}
+              </p>
+              {proformaInvoice.project?.gst_number && (
+                <p className="mb-1">
+                  <strong>GSTIN:</strong> {proformaInvoice.project.gst_number}
+                </p>
               )}
             </div>
-            <div className="col-md-6">
-              <h6>Work Order & Project Information</h6>
-              <p><strong>Work Order #:</strong> {proformaInvoice.work_order?.invoice_number}</p>
-              <p><strong>Project:</strong> {proformaInvoice.project?.project_name}</p>
-              <p><strong>Customer:</strong> {proformaInvoice.customer?.name}</p>
-              <p><strong>Location:</strong> {proformaInvoice.customer?.address}</p>
-              <p><strong>Mobile:</strong> {proformaInvoice.customer?.mobile}</p>
+            <div className="col-md-6 text-end">
+              <h6 className="fw-bold text-primary">Invoice Details:</h6>
+              <p className="mb-1">
+                <strong>Invoice No:</strong> {proformaInvoice.proforma_invoice_number}
+              </p>
+              <p className="mb-1">
+                <strong>Date:</strong> {proformaInvoice.invoice_date}
+              </p>
+              <p className="mb-1">
+                <strong>Project:</strong> {proformaInvoice.project?.project_name || 'N/A'}
+              </p>
+              {proformaInvoice.po_number && (
+                <p className="mb-1">
+                  <strong>PO Number:</strong> {proformaInvoice.po_number}
+                </p>
+              )}
             </div>
           </div>
 
           {/* Work Details Table */}
           <div className="row section mb-4">
             <div className="col-md-12">
-              <h6>Work Details</h6>
+              <h6 className="fw-semibold text-primary border-bottom border-primary pb-2 mb-3">
+                Work Details
+              </h6>
               <table className="table table-bordered border-black">
-                <thead>
+                <thead className="table-primary">
                   <tr>
-                    <th>Sr. No.</th>
+                    <th>Sr. No</th>
                     <th>Work Type</th>
-                    <th>Unit</th>
-                    <th>Quantity</th>
-                    <th>Price</th>
+                    <th>UOM</th>
+                    <th>Qty</th>
+                    <th>Rate</th>
                     {showRowGST && <th>Base Amount</th>}
                     {showRowGST && <th>GST %</th>}
                     {showRowGST && <th>CGST</th>}
@@ -299,21 +307,19 @@ const ProformaInvoiceDetails = () => {
                       const gstPercent = parseFloat(item.gst_percent) || 0
                       const cgstAmount = parseFloat(item.cgst_amount) || 0
                       const sgstAmount = parseFloat(item.sgst_amount) || 0
-                      const totalPrice = parseFloat(item.total_price) || 0
                       const cgstPercent = gstPercent ? gstPercent / 2 : 0
                       const sgstPercent = gstPercent ? gstPercent / 2 : 0
-                      
+                      const totalPrice = parseFloat(item.total_price) || 0
+
                       return (
                         <tr key={index}>
                           <td>{index + 1}</td>
-                          <td>{item.work_type}</td>
-                          <td>{item.uom}</td>
+                          <td>{item.work_type || 'N/A'}</td>
+                          <td>{item.uom || 'N/A'}</td>
                           <td>{qty.toFixed(2)}</td>
                           <td>₹{price.toFixed(2)}</td>
                           {showRowGST && <td>₹{baseAmount.toFixed(2)}</td>}
-                          {showRowGST && (
-                            <td>{gstPercent > 0 ? `${gstPercent.toFixed(2)}%` : '-'}</td>
-                          )}
+                          {showRowGST && <td>{gstPercent ? `${gstPercent}%` : '-'}</td>}
                           {showRowGST && (
                             <td>
                               {cgstAmount > 0 
@@ -339,6 +345,18 @@ const ProformaInvoiceDetails = () => {
                       <td colSpan={showRowGST ? "10" : "6"} className="text-center">
                         No work details available
                       </td>
+                    </tr>
+                  )}
+                  
+                  {/* Total Row */}
+                  {proformaInvoice.details && proformaInvoice.details.length > 0 && (
+                    <tr className="table-warning fw-bold">
+                      <td colSpan={showRowGST ? "5" : "4"} className="text-end">Total:</td>
+                      {showRowGST && <td>₹{displayTotals.subtotalWithoutGST.toFixed(2)}</td>}
+                      {showRowGST && <td>-</td>}
+                      {showRowGST && <td>₹{displayTotals.rowCGST.toFixed(2)}</td>}
+                      {showRowGST && <td>₹{displayTotals.rowSGST.toFixed(2)}</td>}
+                      <td>₹{displayTotals.totalAfterRowGST.toFixed(2)}</td>
                     </tr>
                   )}
                 </tbody>

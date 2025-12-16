@@ -406,6 +406,16 @@ ${(() => {
                 <td class="right" style="width: ${showRowGST ? '12%' : '18%'}; font-size: 10px;">₹${Number(item.total_price || 0).toFixed(2)}</td>
               </tr>`;
             }).join('')}
+            ${isLastInvoicePage && items.length > 0 ? `
+              <tr style="background: #fff3cd; font-weight: bold;">
+                <td colspan="${showRowGST ? '5' : '4'}" class="right" style="font-size: 11px; padding: 6px;">Total:</td>
+                ${showRowGST ? `<td class="right" style="font-size: 11px;">₹${items.reduce((sum, item) => sum + ((item.qty * item.price) || 0), 0).toFixed(2)}</td>` : ''}
+                ${showRowGST ? `<td class="center" style="font-size: 11px;">-</td>` : ''}
+                ${showRowGST ? `<td class="right" style="font-size: 11px;">₹${items.reduce((sum, item) => sum + (item.cgst_amount || 0), 0).toFixed(2)}</td>` : ''}
+                ${showRowGST ? `<td class="right" style="font-size: 11px;">₹${items.reduce((sum, item) => sum + (item.sgst_amount || 0), 0).toFixed(2)}</td>` : ''}
+                <td class="right" style="font-size: 11px;">₹${items.reduce((sum, item) => sum + (item.total_price || 0), 0).toFixed(2)}</td>
+              </tr>
+            ` : ''}
           </tbody>
         </table>
 
