@@ -357,15 +357,16 @@ export const exportToExcel = (
     // Create workbook
     const workbook = XLSX.utils.book_new();
 
+    // Find maximum number of photos in any expense
+    const maxPhotos = sortedFilteredExpenses.reduce((max, expense) => {
+      const photoCount = expense.photos && Array.isArray(expense.photos) 
+        ? expense.photos.length 
+        : (expense.photo_url && expense.photo_url !== 'NA' ? 1 : 0);
+      return Math.max(max, photoCount);
+    }, 0);
+
     // Prepare data with GST calculations moved to end of columns
     const worksheetData = sortedFilteredExpenses.map((expense, index) => {
-      const photoUrl = expense.photo_url && expense.photo_url !== 'NA'
-        ? `${origin}/${expense.photo_url.replace(/\\/g, '/')}`
-        : '-';
-      const fileName = expense.photo_url && expense.photo_url !== 'NA'
-        ? expense.photo_url.split('/').pop()
-        : '-';
-
       // Calculate GST amounts
       const price = parseFloat(expense.price || 0);
       const qty = parseFloat(expense.qty || 0);
@@ -380,7 +381,8 @@ export const exportToExcel = (
       const igstAmount = expense.isGst ? (baseAmount * igstPercentage) / 100 : 0;
       const totalGstAmount = cgstAmount + sgstAmount + igstAmount;
 
-      return {
+      // Create base row object
+      const rowData = {
         'Sr No': index + 1,
         'Date': formatDate(expense.expense_date),
         'Project': expense.project?.project_name || '-',
@@ -398,21 +400,43 @@ export const exportToExcel = (
         'Transaction ID': expense.transaction_id || '-',
         'About': expense.name || '-',
         'Notes': expense.photo_remark || '-',
-        'Photo/PDF': fileName, // Display file name, hyperlink added later
-        'GST (%)': expense.isGst ? (gstPercentage || '-') : '-',
-        'CGST (%)': expense.isGst ? (cgstPercentage || '-') : '-',
-        'CGST Amount': expense.isGst ? formatIndianNumber(cgstAmount) : '-',
-        'SGST (%)': expense.isGst ? (sgstPercentage || '-') : '-',
-        'SGST Amount': expense.isGst ? formatIndianNumber(sgstAmount) : '-',
-        'IGST (%)': expense.isGst ? (igstPercentage || '-') : '-',
-        'IGST Amount': expense.isGst ? formatIndianNumber(igstAmount) : '-',
-        'Total GST': expense.isGst ? formatIndianNumber(totalGstAmount) : '-',
-        'Total Amount': formatIndianNumber(expense.total_price || baseAmount + totalGstAmount)
       };
+
+      // Add photo columns dynamically
+      for (let i = 1; i <= maxPhotos; i++) {
+        let photoName = '-';
+        let photoRemark = '-';
+        
+        if (expense.photos && expense.photos[i - 1]) {
+          const photo = expense.photos[i - 1];
+          photoName = photo.remark || `Photo ${i}`;
+          photoRemark = photo.remark || '-';
+        } else if (i === 1 && expense.photo_url && expense.photo_url !== 'NA') {
+          // Old format support for first photo
+          photoName = expense.photo_url.split('/').pop();
+          photoRemark = expense.photo_remark || '-';
+        }
+        
+        rowData[`Photo ${i}`] = photoName;
+        rowData[`Photo ${i} Remark`] = photoRemark;
+      }
+
+      // Add GST and total columns
+      rowData['GST (%)'] = expense.isGst ? (gstPercentage || '-') : '-';
+      rowData['CGST (%)'] = expense.isGst ? (cgstPercentage || '-') : '-';
+      rowData['CGST Amount'] = expense.isGst ? formatIndianNumber(cgstAmount) : '-';
+      rowData['SGST (%)'] = expense.isGst ? (sgstPercentage || '-') : '-';
+      rowData['SGST Amount'] = expense.isGst ? formatIndianNumber(sgstAmount) : '-';
+      rowData['IGST (%)'] = expense.isGst ? (igstPercentage || '-') : '-';
+      rowData['IGST Amount'] = expense.isGst ? formatIndianNumber(igstAmount) : '-';
+      rowData['Total GST'] = expense.isGst ? formatIndianNumber(totalGstAmount) : '-';
+      rowData['Total Amount'] = formatIndianNumber(expense.total_price || baseAmount + totalGstAmount);
+
+      return rowData;
     });
 
     // Add totals row at the end of data
-    worksheetData.push({
+    const totalsRow = {
       'Sr No': '',
       'Date': '',
       'Project': '',
@@ -430,17 +454,26 @@ export const exportToExcel = (
       'Transaction ID': '',
       'About': '',
       'Notes': '',
-      'Photo/PDF': '',
-      'GST (%)': '',
-      'CGST (%)': '',
-      'CGST Amount': formatIndianNumber(totalCgstAmount),
-      'SGST (%)': '',
-      'SGST Amount': formatIndianNumber(totalSgstAmount),
-      'IGST (%)': '',
-      'IGST Amount': formatIndianNumber(totalIgstAmount),
-      'Total GST': formatIndianNumber(totalCgstAmount + totalSgstAmount + totalIgstAmount),
-      'Total Amount': formatIndianNumber(totalExpense)
-    });
+    };
+
+    // Add empty photo columns to totals row
+    for (let i = 1; i <= maxPhotos; i++) {
+      totalsRow[`Photo ${i}`] = '';
+      totalsRow[`Photo ${i} Remark`] = '';
+    }
+
+    // Add GST totals
+    totalsRow['GST (%)'] = '';
+    totalsRow['CGST (%)'] = '';
+    totalsRow['CGST Amount'] = formatIndianNumber(totalCgstAmount);
+    totalsRow['SGST (%)'] = '';
+    totalsRow['SGST Amount'] = formatIndianNumber(totalSgstAmount);
+    totalsRow['IGST (%)'] = '';
+    totalsRow['IGST Amount'] = formatIndianNumber(totalIgstAmount);
+    totalsRow['Total GST'] = formatIndianNumber(totalCgstAmount + totalSgstAmount + totalIgstAmount);
+    totalsRow['Total Amount'] = formatIndianNumber(totalExpense);
+
+    worksheetData.push(totalsRow);
 
     // Prepare header section
     const summary = [
@@ -469,7 +502,16 @@ export const exportToExcel = (
       'Transaction ID',
       'About',
       'Notes',
-      'Photo/PDF',
+    ];
+
+    // Add photo headers dynamically
+    for (let i = 1; i <= maxPhotos; i++) {
+      headers.push(`Photo ${i}`);
+      headers.push(`Photo ${i} Remark`);
+    }
+
+    // Add GST and total headers
+    headers.push(
       'GST (%)',
       'CGST (%)',
       'CGST Amount',
@@ -479,7 +521,7 @@ export const exportToExcel = (
       'IGST Amount',
       'Total GST',
       'Total Amount'
-    ];
+    );
 
     // Create empty worksheet
     const worksheet = XLSX.utils.aoa_to_sheet([]);
@@ -493,8 +535,8 @@ export const exportToExcel = (
     // Add data starting at row 6
     XLSX.utils.sheet_add_json(worksheet, worksheetData, { origin: 'A6', skipHeader: true });
 
-    // Set column widths
-    worksheet['!cols'] = [
+    // Set column widths dynamically
+    const columnWidths = [
       { wch: 6 },   // Sr No
       { wch: 12 },  // Date
       { wch: 20 },  // Project
@@ -502,7 +544,7 @@ export const exportToExcel = (
       { wch: 18 },  // Expense Category
       { wch: 8 },   // Qty
       { wch: 12 },  // Price
-      { wch: 14 }, // Base Amount
+      { wch: 14 },  // Base Amount
       { wch: 15 },  // Payment By
       { wch: 15 },  // Payment Type
       { wch: 15 },  // Contact
@@ -512,7 +554,16 @@ export const exportToExcel = (
       { wch: 16 },  // Transaction ID
       { wch: 20 },  // About
       { wch: 20 },  // Notes
-      { wch: 50 },  // Photo/PDF
+    ];
+
+    // Add photo column widths dynamically
+    for (let i = 1; i <= maxPhotos; i++) {
+      columnWidths.push({ wch: 30 });  // Photo name/link
+      columnWidths.push({ wch: 25 });  // Photo remark
+    }
+
+    // Add GST column widths
+    columnWidths.push(
       { wch: 10 },  // GST %
       { wch: 10 },  // CGST %
       { wch: 12 },  // CGST Amount
@@ -522,7 +573,9 @@ export const exportToExcel = (
       { wch: 12 },  // IGST Amount
       { wch: 12 },  // Total GST
       { wch: 14 }   // Total Amount
-    ];
+    );
+
+    worksheet['!cols'] = columnWidths;
 
     // Apply styles to cells
     const range = XLSX.utils.decode_range(worksheet['!ref']);
@@ -603,36 +656,51 @@ export const exportToExcel = (
       }
     }
 
-    // Convert Photo/PDF column to hyperlinks
-    const photoColIndex = headers.indexOf('Photo/PDF');
-    const startRow = dataStartRow; // 0-based
+    // Convert Photo columns to hyperlinks
+    const startRow = dataStartRow;
     
     for (let i = 0; i < sortedFilteredExpenses.length; i++) {
-      const cellAddress = XLSX.utils.encode_cell({ r: startRow + i, c: photoColIndex });
       const expense = sortedFilteredExpenses[i];
       
-      if (expense.photo_url && expense.photo_url !== 'NA') {
-        const fileUrl = `${origin}/${expense.photo_url.replace(/\\/g, '/')}`;
-        const fileName = expense.photo_url.split('/').pop();
+      // Process each photo column
+      for (let photoNum = 1; photoNum <= maxPhotos; photoNum++) {
+        const photoColIndex = headers.indexOf(`Photo ${photoNum}`);
+        const cellAddress = XLSX.utils.encode_cell({ r: startRow + i, c: photoColIndex });
         
-        worksheet[cellAddress] = {
-          t: 's',
-          v: fileName,
-          l: { Target: fileUrl, Tooltip: 'Click to view file' },
-          s: {
-            font: { color: { rgb: "0563C1" }, underline: true },
-            alignment: { horizontal: "left", vertical: "center" }
-          }
-        };
-      } else {
-        worksheet[cellAddress] = {
-          t: 's',
-          v: '-',
-          s: {
-            font: { color: { rgb: "000000" } },
-            alignment: { horizontal: "left", vertical: "center" }
-          }
-        };
+        let photoUrl = null;
+        let displayName = '-';
+        
+        if (expense.photos && expense.photos[photoNum - 1]) {
+          // New format: multiple photos array
+          const photo = expense.photos[photoNum - 1];
+          photoUrl = `${origin}/${photo.photo_url.replace(/\\/g, '/')}`;
+          displayName = photo.remark || `Photo ${photoNum}`;
+        } else if (photoNum === 1 && expense.photo_url && expense.photo_url !== 'NA') {
+          // Old format: single photo_url (only for first column)
+          photoUrl = `${origin}/${expense.photo_url.replace(/\\/g, '/')}`;
+          displayName = expense.photo_url.split('/').pop();
+        }
+        
+        if (photoUrl) {
+          worksheet[cellAddress] = {
+            t: 's',
+            v: displayName,
+            l: { Target: photoUrl, Tooltip: 'Click to view photo' },
+            s: {
+              font: { color: { rgb: "0563C1" }, underline: true, sz: 10 },
+              alignment: { horizontal: "left", vertical: "center", wrapText: true }
+            }
+          };
+        } else {
+          worksheet[cellAddress] = {
+            t: 's',
+            v: '-',
+            s: {
+              font: { color: { rgb: "000000" }, sz: 10 },
+              alignment: { horizontal: "center", vertical: "center" }
+            }
+          };
+        }
       }
     }
 
@@ -707,7 +775,7 @@ export const exportToExcel = (
     // Save Excel file
     XLSX.writeFile(workbook, fileName, { cellStyles: true });
     
-    showToast('success', 'Excel file downloaded successfully! Click on file links in the "Photo/PDF" column to view files.');
+    showToast('success', `Excel file downloaded successfully! Each photo is in a separate column. Total photos columns: ${maxPhotos > 0 ? maxPhotos : 'none'}.`);
   } catch (error) {
     console.error('Error generating Excel:', error);
     showToast('danger', 'Error generating Excel file: ' + error.message);

@@ -153,6 +153,7 @@ const InvoiceDetails = () => {
 
       date: response.invoiceDate || '',
       items: (response.items || []).map((item) => ({
+        id: item.id,
         work_type: item.product_name || item.work_type || 'N/A',
         qty: item.dQty || item.qty || 0,
         uom: item.uom || 'N/A',
@@ -162,7 +163,7 @@ const InvoiceDetails = () => {
         gst_percent: Number(item.gst_percent) || 0,
         cgst_amount: Number(item.cgst_amount) || 0,
         sgst_amount: Number(item.sgst_amount) || 0,
-      })),
+      })).sort((a, b) => a.id - b.id), // Sort by id ascending to show items in the order they were saved
       discount: discountValue,
       amountPaid: response.paidAmount || 0,
       paymentMode: paymentModeString,
@@ -351,28 +352,17 @@ Thank you!`)
                     <th>Price</th>
                     {showRowGST && <th>Base Amount</th>}
                     {showRowGST && <th>GST %</th>}
-                    {showRowGST && (
-                      <th>
-                        CGST
-                        {formData.items.length > 0 && formData.items[0].gst_percent > 0 && (
-                          <> ({formData.items[0].gst_percent / 2}%)</>
-                        )}
-                      </th>
-                    )}
-                    {showRowGST && (
-                      <th>
-                        SGST
-                        {formData.items.length > 0 && formData.items[0].gst_percent > 0 && (
-                          <> ({formData.items[0].gst_percent / 2}%)</>
-                        )}
-                      </th>
-                    )}
+                    {showRowGST && <th>CGST</th>}
+                    {showRowGST && <th>SGST</th>}
                     <th>Total</th>
                   </tr>
                 </thead>
                 <tbody>
                   {formData.items.length > 0 ? (
                     formData.items.map((item, index) => {
+                      const cgstPercent = item.gst_percent ? item.gst_percent / 2 : 0;
+                      const sgstPercent = item.gst_percent ? item.gst_percent / 2 : 0;
+                      
                       return (
                         <tr key={index}>
                           <td>{index + 1}</td>
@@ -382,8 +372,20 @@ Thank you!`)
                           <td>₹{item.price.toFixed(2)}</td>
                           {showRowGST && <td>₹{(item.qty * item.price).toFixed(2)}</td>}
                           {showRowGST && <td>{item.gst_percent ? `${item.gst_percent}%` : '-'}</td>}
-                          {showRowGST && <td>{item.cgst_amount > 0 ? `₹${(item.cgst_amount || 0).toFixed(2)}` : '-'}</td>}
-                          {showRowGST && <td>{item.sgst_amount > 0 ? `₹${(item.sgst_amount || 0).toFixed(2)}` : '-'}</td>}
+                          {showRowGST && (
+                            <td>
+                              {item.cgst_amount > 0 
+                                ? `₹${(item.cgst_amount || 0).toFixed(2)} (${cgstPercent}%)` 
+                                : '-'}
+                            </td>
+                          )}
+                          {showRowGST && (
+                            <td>
+                              {item.sgst_amount > 0 
+                                ? `₹${(item.sgst_amount || 0).toFixed(2)} (${sgstPercent}%)` 
+                                : '-'}
+                            </td>
+                          )}
                           <td>₹{item.total_price.toFixed(2)}</td>
                         </tr>
                       );

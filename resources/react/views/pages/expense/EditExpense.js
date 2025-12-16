@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   CButton,
   CForm,
@@ -10,8 +10,14 @@ import {
   CModalFooter,
   CModalHeader,
   CModalTitle,
+  CCard,
+  CCardBody,
+  CCardHeader,
+  CBadge,
 } from "@coreui/react";
-import { getAPICall, put } from "../../../util/api";
+import CIcon from '@coreui/icons-react';
+import { cilTrash, cilCloudUpload } from '@coreui/icons';
+import { getAPICall, postFormData } from "../../../util/api";
 import { useToast } from "../../common/toast/ToastContext";
 import { useTranslation } from "react-i18next";
 import i18n from "i18next";
@@ -23,6 +29,13 @@ const EditExpense = ({ visible, onClose, expense, onExpenseUpdated }) => {
   const [loading, setLoading] = useState(false);
   const { showToast } = useToast();
   const { t } = useTranslation("global");
+
+  // Photo states
+  const [existingPhotos, setExistingPhotos] = useState([]);
+  const [newPhotos, setNewPhotos] = useState([]);
+  const [photosToDelete, setPhotosToDelete] = useState([]);
+  const [showPhotoPreviewModal, setShowPhotoPreviewModal] = useState(false);
+  const fileInputRef = useRef(null);
 
   const [state, setState] = useState({
     name: "",
@@ -91,6 +104,17 @@ const EditExpense = ({ visible, onClose, expense, onExpenseUpdated }) => {
           expense.expense_date || new Date().toISOString().split("T")[0],
         show: expense.show !== undefined ? expense.show : true,
       });
+      
+      // Load existing photos
+      if (expense.photos && Array.isArray(expense.photos)) {
+        setExistingPhotos(expense.photos);
+      } else {
+        setExistingPhotos([]);
+      }
+      
+      // Reset photo changes
+      setNewPhotos([]);
+      setPhotosToDelete([]);
       setValidated(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -118,6 +142,77 @@ const EditExpense = ({ visible, onClose, expense, onExpenseUpdated }) => {
     }
   };
 
+  // Photo handling functions
+  const handlePhotoChange = (e) => {
+    const files = Array.from(e.target.files);
+    const validFiles = [];
+
+    files.forEach(file => {
+      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
+      if (!validTypes.includes(file.type)) {
+        showToast('warning', `${file.name} is not a valid file type.`);
+        return;
+      }
+
+      if (file.size > 4096 * 1024) {
+        showToast('warning', `${file.name} exceeds 4MB size limit.`);
+        return;
+      }
+
+      validFiles.push({
+        file: file,
+        preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : null,
+        name: file.name,
+        size: (file.size / 1024).toFixed(2),
+        type: file.type.includes('pdf') ? 'pdf' : 'image',
+        remark: '',
+        id: 'new_' + Date.now() + Math.random()
+      });
+    });
+
+    setNewPhotos(prev => [...prev, ...validFiles]);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const removeNewPhoto = (photoId) => {
+    setNewPhotos(prev => {
+      const updated = prev.filter(p => p.id !== photoId);
+      const photo = prev.find(p => p.id === photoId);
+      if (photo && photo.preview) {
+        URL.revokeObjectURL(photo.preview);
+      }
+      return updated;
+    });
+  };
+
+  const markExistingPhotoForDeletion = (photoId) => {
+    if (photosToDelete.includes(photoId)) {
+      setPhotosToDelete(photosToDelete.filter(id => id !== photoId));
+    } else {
+      setPhotosToDelete([...photosToDelete, photoId]);
+    }
+  };
+
+  const updatePhotoRemark = (photoId, remark) => {
+    if (typeof photoId === 'string' && photoId.startsWith('new_')) {
+      // Update new photo remark
+      setNewPhotos(prev => prev.map(p => 
+        p.id === photoId ? { ...p, remark } : p
+      ));
+    } else {
+      // Update existing photo remark
+      setExistingPhotos(prev => prev.map(p => 
+        p.id === photoId ? { ...p, remark } : p
+      ));
+    }
+  };
+
+  const getTotalPhotoCount = () => {
+    return existingPhotos.filter(p => !photosToDelete.includes(p.id)).length + newPhotos.length;
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     event.stopPropagation();
@@ -138,18 +233,78 @@ const EditExpense = ({ visible, onClose, expense, onExpenseUpdated }) => {
     if (state.expense_id && state.price > 0 && state.qty > 0) {
       setLoading(true);
       try {
-        const cleanedData = { ...state, id: expense.id };
-        const resp = await put(`/api/expense/${expense.id}`, cleanedData);
+        const formData = new FormData();
+        
+        // Laravel _method spoofing for PUT with FormData
+        formData.append('_method', 'PUT');
+        
+        // Add required fields explicitly
+        formData.append('expense_id', state.expense_id);
+        formData.append('price', state.price);
+        formData.append('qty', state.qty);
+        formData.append('total_price', state.total_price);
+        formData.append('expense_date', state.expense_date);
+        formData.append('show', state.show ? 1 : 0);
+        formData.append('payment_type', state.payment_type);
+        formData.append('payment_by', state.payment_by || '');
+        
+        // Add optional fields
+        if (state.name) formData.append('name', state.name);
+        if (state.desc) formData.append('desc', state.desc);
+        if (state.contact) formData.append('contact', state.contact);
+        if (state.pending_amount) formData.append('pending_amount', state.pending_amount);
+        
+        // GST fields
+        formData.append('isGst', state.isGst ? 1 : 0);
+        if (state.gst) formData.append('gst', state.gst);
+        if (state.sgst) formData.append('sgst', state.sgst);
+        if (state.cgst) formData.append('cgst', state.cgst);
+        if (state.igst) formData.append('igst', state.igst);
+        
+        // Bank fields
+        if (state.bank_name) formData.append('bank_name', state.bank_name);
+        if (state.acc_number) formData.append('acc_number', state.acc_number);
+        if (state.ifsc) formData.append('ifsc', state.ifsc);
+        if (state.transaction_id) formData.append('transaction_id', state.transaction_id);
+        if (state.aadhar) formData.append('aadhar', state.aadhar);
+        if (state.pan) formData.append('pan', state.pan);
 
-        if (resp) {
+        // Add photos to delete
+        if (photosToDelete.length > 0) {
+          photosToDelete.forEach((id, index) => {
+            formData.append(`delete_photo_ids[${index}]`, id);
+          });
+        }
+
+        // Add new photos
+        if (newPhotos.length > 0) {
+          newPhotos.forEach((photo, index) => {
+            formData.append(`new_photos[${index}]`, photo.file);
+            if (photo.remark) {
+              formData.append(`new_photo_remarks[${index}]`, photo.remark);
+            }
+          });
+        }
+
+        // Update remarks for existing photos (only if changed)
+        existingPhotos.forEach(photo => {
+          if (!photosToDelete.includes(photo.id)) {
+            formData.append(`photo_remarks[${photo.id}]`, photo.remark || '');
+          }
+        });
+
+        // Use POST instead of PUT for FormData
+        const resp = await postFormData(`/api/expense/${expense.id}`, formData);
+
+        if (resp && resp.success) {
           showToast("success", t("MSG.expense_updated_successfully"));
-          onExpenseUpdated && onExpenseUpdated(cleanedData);
+          onExpenseUpdated && onExpenseUpdated(resp.expense || state);
           onClose();
         } else {
           showToast("danger", t("MSG.error_occured_please_try_again_later_msg"));
         }
       } catch (error) {
-        showToast("danger", "Error occurred " + error);
+        showToast("danger", "Error occurred: " + error.message);
       } finally {
         setLoading(false);
       }
@@ -167,7 +322,7 @@ const EditExpense = ({ visible, onClose, expense, onExpenseUpdated }) => {
   const lng = getCurrentLanguage();
 
   return (
-    <CModal visible={visible} onClose={handleClose} size="xl">
+    <CModal visible={visible} onClose={handleClose} size="lg">
       <CModalHeader>
         <CModalTitle>{t("LABELS.edit_expense")}</CModalTitle>
       </CModalHeader>
@@ -423,6 +578,42 @@ const EditExpense = ({ visible, onClose, expense, onExpenseUpdated }) => {
               />
             </div>
           </div>
+
+          {/* Photo Upload Section */}
+          <div className="row mt-3">
+            <div className="col-12">
+              <hr />
+              <h6>Photos ({getTotalPhotoCount()})</h6>
+            </div>
+            
+            <div className="col-12 mb-3">
+              <CFormLabel htmlFor="photo_files">
+                <b>Upload Photos (JPG, PNG, PDF - Max 4MB each)</b>
+              </CFormLabel>
+              <div className="d-flex gap-2">
+                <CFormInput
+                  ref={fileInputRef}
+                  type="file"
+                  id="photo_files"
+                  name="photo_files"
+                  accept="image/png, image/jpeg, image/jpg, application/pdf"
+                  onChange={handlePhotoChange}
+                  multiple
+                  style={{ flex: 1 }}
+                />
+                {getTotalPhotoCount() > 0 && (
+                  <CButton 
+                    color="info" 
+                    onClick={() => setShowPhotoPreviewModal(true)}
+                    type="button"
+                  >
+                    Preview ({getTotalPhotoCount()})
+                  </CButton>
+                )}
+              </div>
+              <small className="text-muted">You can select multiple files at once</small>
+            </div>
+          </div>
         </CForm>
       </CModalBody>
 
@@ -434,6 +625,173 @@ const EditExpense = ({ visible, onClose, expense, onExpenseUpdated }) => {
           {loading ? "Updating..." : t("LABELS.update_expense")}
         </CButton>
       </CModalFooter>
+
+      {/* Photo Preview Modal */}
+      <CModal 
+        visible={showPhotoPreviewModal} 
+        onClose={() => setShowPhotoPreviewModal(false)}
+        size="xl"
+        scrollable
+      >
+        <CModalHeader>
+          <CModalTitle>Photo Preview ({getTotalPhotoCount()} photos)</CModalTitle>
+        </CModalHeader>
+        <CModalBody>
+          {/* Existing Photos */}
+          {existingPhotos.length > 0 && (
+            <div className="mb-4">
+              <h6>Existing Photos ({existingPhotos.filter(p => !photosToDelete.includes(p.id)).length})</h6>
+              <div className="row g-3">
+                {existingPhotos.map((photo) => {
+                  const isMarkedForDeletion = photosToDelete.includes(photo.id);
+                  return (
+                    <div key={photo.id} className="col-md-4">
+                      <CCard className={isMarkedForDeletion ? 'border-danger' : ''}>
+                        <CCardBody>
+                          <div 
+                            className="d-flex align-items-center justify-content-center mb-2" 
+                            style={{ 
+                              height: '200px', 
+                              backgroundColor: '#f8f9fa',
+                              borderRadius: '4px',
+                              overflow: 'hidden',
+                              opacity: isMarkedForDeletion ? 0.3 : 1,
+                              position: 'relative'
+                            }}
+                          >
+                            {photo.photo_type === 'pdf' ? (
+                              <div className="text-center">
+                                <CIcon icon={cilCloudUpload} size="4xl" />
+                                <div className="mt-2">
+                                  <CBadge color="danger">PDF</CBadge>
+                                </div>
+                              </div>
+                            ) : (
+                              <img
+                                src={`/${photo.photo_url}`}
+                                alt={`Photo ${photo.id}`}
+                                style={{ 
+                                  maxWidth: '100%', 
+                                  maxHeight: '100%', 
+                                  objectFit: 'contain'
+                                }}
+                              />
+                            )}
+                            {isMarkedForDeletion && (
+                              <div className="position-absolute top-50 start-50 translate-middle">
+                                <CBadge color="danger" style={{ fontSize: '1rem', padding: '8px' }}>
+                                  Marked for Deletion
+                                </CBadge>
+                              </div>
+                            )}
+                          </div>
+                          <small className="text-muted d-block mb-2">
+                            {photo.photo_url.split('/').pop()} 
+                            {photo.file_size && ` (${photo.file_size} KB)`}
+                          </small>
+                          <CFormInput
+                            type="text"
+                            size="sm"
+                            placeholder="Photo remark"
+                            value={photo.remark || ''}
+                            onChange={(e) => updatePhotoRemark(photo.id, e.target.value)}
+                            className="mb-2"
+                            disabled={isMarkedForDeletion}
+                          />
+                          <CButton
+                            color={isMarkedForDeletion ? 'warning' : 'danger'}
+                            size="sm"
+                            onClick={() => markExistingPhotoForDeletion(photo.id)}
+                            className="w-100"
+                          >
+                            <CIcon icon={cilTrash} /> 
+                            {isMarkedForDeletion ? 'Undo Delete' : 'Delete'}
+                          </CButton>
+                        </CCardBody>
+                      </CCard>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* New Photos */}
+          {newPhotos.length > 0 && (
+            <div>
+              <h6>New Photos to Upload ({newPhotos.length})</h6>
+              <div className="row g-3">
+                {newPhotos.map((photo) => (
+                  <div key={photo.id} className="col-md-4">
+                    <CCard className="border-success">
+                      <CCardBody>
+                        <div 
+                          className="d-flex align-items-center justify-content-center mb-2" 
+                          style={{ 
+                            height: '200px', 
+                            backgroundColor: '#f8f9fa',
+                            borderRadius: '4px',
+                            overflow: 'hidden'
+                          }}
+                        >
+                          {photo.type === 'image' ? (
+                            <img
+                              src={photo.preview}
+                              alt={photo.name}
+                              style={{ 
+                                maxWidth: '100%', 
+                                maxHeight: '100%', 
+                                objectFit: 'contain'
+                              }}
+                            />
+                          ) : (
+                            <div className="text-center">
+                              <CIcon icon={cilCloudUpload} size="4xl" />
+                              <div className="mt-2">
+                                <CBadge color="danger">PDF</CBadge>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        <small className="text-muted d-block mb-2">
+                          {photo.name} ({photo.size} KB)
+                        </small>
+                        <CFormInput
+                          type="text"
+                          size="sm"
+                          placeholder="Photo remark"
+                          value={photo.remark}
+                          onChange={(e) => updatePhotoRemark(photo.id, e.target.value)}
+                          className="mb-2"
+                        />
+                        <CButton
+                          color="danger"
+                          size="sm"
+                          onClick={() => removeNewPhoto(photo.id)}
+                          className="w-100"
+                        >
+                          <CIcon icon={cilTrash} /> Remove
+                        </CButton>
+                      </CCardBody>
+                    </CCard>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {getTotalPhotoCount() === 0 && (
+            <div className="text-center py-4 text-muted">
+              No photos added yet
+            </div>
+          )}
+        </CModalBody>
+        <CModalFooter>
+          <CButton color="secondary" onClick={() => setShowPhotoPreviewModal(false)}>
+            Close
+          </CButton>
+        </CModalFooter>
+      </CModal>
     </CModal>
   );
 };

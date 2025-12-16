@@ -192,20 +192,22 @@ const EditInvoice = () => {
           orderStatus: convertTo ? parseInt(convertTo) : data.orderStatus || 1,
 
           // 🔑 Items with GST
-          items: (data.items || []).map((item) => ({
-            id: item.id,
-            work_type: item.work_type || '',
-            uom: item.uom || '',
-            qty: Number(item.qty || 0),
-            price: Number(item.price || 0),
-            total_price: Number(item.total_price || 0),
-            remark: item.remark || '',
-            gst_percent: item.gst_percent !== null && item.gst_percent !== undefined 
-              ? Number(item.gst_percent) 
-              : 18,
-            cgst_amount: Number(item.cgst_amount || 0),
-            sgst_amount: Number(item.sgst_amount || 0),
-          })),
+          items: (data.items || [])
+  .map((item) => ({
+    id: item.id,
+    work_type: item.work_type || '',
+    uom: item.uom || '',
+    qty: Number(item.qty || 0),
+    price: Number(item.price || 0),
+    total_price: Number(item.total_price || 0),
+    remark: item.remark || '',
+    gst_percent: item.gst_percent !== null && item.gst_percent !== undefined 
+      ? Number(item.gst_percent) 
+      : 18,
+    cgst_amount: Number(item.cgst_amount || 0),
+    sgst_amount: Number(item.sgst_amount || 0),
+  }))
+  .sort((a, b) => (a.id || 0) - (b.id || 0)),
 
           // 🔑 Amounts
           totalAmount: totalAmount,

@@ -77,4 +77,9 @@ public function project()
         return $this->belongsTo(Project::class, 'project_id', 'id');
     }
 
+    public function photos()
+{
+    return $this->hasMany(ExpensePhoto::class);
+}
+
 }

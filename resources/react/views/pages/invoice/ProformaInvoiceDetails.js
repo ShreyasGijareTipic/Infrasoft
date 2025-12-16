@@ -41,6 +41,11 @@ const ProformaInvoiceDetails = () => {
       if (response.success) {
         const data = response.data
         
+        // Sort details by id ascending to show items in the order they were saved
+        if (data.details && Array.isArray(data.details)) {
+          data.details = data.details.sort((a, b) => a.id - b.id)
+        }
+        
         // Calculate GST percentages from amounts
         const cgstAmt = parseFloat(data.cgst_amount) || 0
         const sgstAmt = parseFloat(data.sgst_amount) || 0
@@ -280,24 +285,8 @@ const ProformaInvoiceDetails = () => {
                     <th>Price</th>
                     {showRowGST && <th>Base Amount</th>}
                     {showRowGST && <th>GST %</th>}
-                    {showRowGST && (
-                      <th>
-                        CGST
-                        {proformaInvoice.details.length > 0 && 
-                         parseFloat(proformaInvoice.details[0].gst_percent) > 0 && (
-                          <> ({parseFloat(proformaInvoice.details[0].gst_percent) / 2}%)</>
-                        )}
-                      </th>
-                    )}
-                    {showRowGST && (
-                      <th>
-                        SGST
-                        {proformaInvoice.details.length > 0 && 
-                         parseFloat(proformaInvoice.details[0].gst_percent) > 0 && (
-                          <> ({parseFloat(proformaInvoice.details[0].gst_percent) / 2}%)</>
-                        )}
-                      </th>
-                    )}
+                    {showRowGST && <th>CGST</th>}
+                    {showRowGST && <th>SGST</th>}
                     <th>Total</th>
                   </tr>
                 </thead>
@@ -311,6 +300,8 @@ const ProformaInvoiceDetails = () => {
                       const cgstAmount = parseFloat(item.cgst_amount) || 0
                       const sgstAmount = parseFloat(item.sgst_amount) || 0
                       const totalPrice = parseFloat(item.total_price) || 0
+                      const cgstPercent = gstPercent ? gstPercent / 2 : 0
+                      const sgstPercent = gstPercent ? gstPercent / 2 : 0
                       
                       return (
                         <tr key={index}>
@@ -326,7 +317,7 @@ const ProformaInvoiceDetails = () => {
                           {showRowGST && (
                             <td>
                               {cgstAmount > 0 
-                                ? `₹${cgstAmount.toFixed(2)}` 
+                                ? `₹${cgstAmount.toFixed(2)} (${cgstPercent}%)` 
                                 : '-'
                               }
                             </td>
@@ -334,7 +325,7 @@ const ProformaInvoiceDetails = () => {
                           {showRowGST && (
                             <td>
                               {sgstAmount > 0 
-                                ? `₹${sgstAmount.toFixed(2)}` 
+                                ? `₹${sgstAmount.toFixed(2)} (${sgstPercent}%)` 
                                 : '-'
                               }
                             </td>
@@ -522,7 +513,7 @@ const ProformaInvoiceDetails = () => {
               onClick={() => navigate(`/edit-proforma-invoice/${id}`)}
             >
               <CIcon icon={cilPencil} className="me-1" />
-              Edit Invoice
+              Edit Proforma Invoice
             </CButton>
 
             {parseFloat(proformaInvoice.pending_amount) > 0 && (

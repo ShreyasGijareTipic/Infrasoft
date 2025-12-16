@@ -123,7 +123,11 @@ export const generateMultiLanguagePDF = (
   const labels = LANGUAGES[lang].labels
   const font = LANGUAGES[lang].font
 
-  const items = Array.isArray(formData.items) ? formData.items : [];
+  // Sort items by ID in ascending order (to show in save order)
+  const items = Array.isArray(formData.items) 
+    ? [...formData.items].sort((a, b) => (a.id || 0) - (b.id || 0))
+    : [];
+  
   const showRowGST = hasRowLevelGST(items);
   const showGlobalGST = hasGlobalGST(formData);
 
@@ -271,7 +275,6 @@ const htmlContent = `
 
 ${(() => {
   const MAX_ROWS = 19;
-  const items = Array.isArray(formData.items) ? formData.items : [];
   const totalPages = Math.ceil(items.length / MAX_ROWS) || 1;
   const hasTermsPage = !!(formData.note || formData.payment_terms || formData.terms_and_conditions);
 
@@ -376,14 +379,18 @@ ${(() => {
               ${showRowGST ? `
                 <th style="width: 12%; font-size: 10px;">${labels.baseAmount}</th>
                 <th style="width: 8%; font-size: 10px;">${labels.gstPercent}</th>
-                <th style="width: 12%; font-size: 10px;">${labels.cgst}${items[0]?.gst_percent ? ` (${items[0].gst_percent / 2}%)` : ''}</th>
-                <th style="width: 12%; font-size: 10px;">${labels.sgst}${items[0]?.gst_percent ? ` (${items[0].gst_percent / 2}%)` : ''}</th>
+                <th style="width: 12%; font-size: 10px;">${labels.cgst}</th>
+                <th style="width: 12%; font-size: 10px;">${labels.sgst}</th>
               ` : ''}
               <th style="width: ${showRowGST ? '12%' : '18%'}; font-size: 10px;">${labels.total}</th>
             </tr>
           </thead>` : ""}
           <tbody>
-            ${itemsPage.map((item, i) => `
+            ${itemsPage.map((item, i) => {
+              const cgstPercent = item.gst_percent ? item.gst_percent / 2 : 0;
+              const sgstPercent = item.gst_percent ? item.gst_percent / 2 : 0;
+              
+              return `
               <tr>
                 <td class="center" style="width: ${showRowGST ? '5%' : '6%'}; font-size: 10px;">${i + 1 + start}</td>
                 <td style="width: ${showRowGST ? '20%' : '38%'}; font-size: 10px;">${item.work_type || ''}</td>
@@ -393,11 +400,12 @@ ${(() => {
                 ${showRowGST ? `
                   <td class="right" style="width: 12%; font-size: 10px;">₹${Number((item.qty * item.price) || 0).toFixed(2)}</td>
                   <td class="center" style="width: 8%; font-size: 10px;">${item.gst_percent ? item.gst_percent + '%' : '-'}</td>
-                  <td class="right" style="width: 12%; font-size: 10px;">${item.cgst_amount > 0 ? '₹' + Number(item.cgst_amount).toFixed(2) : '-'}</td>
-                  <td class="right" style="width: 12%; font-size: 10px;">${item.sgst_amount > 0 ? '₹' + Number(item.sgst_amount).toFixed(2) : '-'}</td>
+                  <td class="right" style="width: 12%; font-size: 10px;">${item.cgst_amount > 0 ? '₹' + Number(item.cgst_amount).toFixed(2) + ' (' + cgstPercent + '%)' : '-'}</td>
+                  <td class="right" style="width: 12%; font-size: 10px;">${item.sgst_amount > 0 ? '₹' + Number(item.sgst_amount).toFixed(2) + ' (' + sgstPercent + '%)' : '-'}</td>
                 ` : ''}
                 <td class="right" style="width: ${showRowGST ? '12%' : '18%'}; font-size: 10px;">₹${Number(item.total_price || 0).toFixed(2)}</td>
-              </tr>`).join('')}
+              </tr>`;
+            }).join('')}
           </tbody>
         </table>
 
@@ -601,10 +609,14 @@ function UnifiedInvoicePdf() {
     DeliveryDate: '2025-01-01',
     lat: 'Sample Address Line',
     items: Array.from({ length: 28 }, (_, i) => ({
+      id: i + 1,
       work_type: String.fromCharCode(97 + (i % 26)),
       qty: Math.floor(Math.random() * 100) + 1,
       price: Math.random() * 1000,
       total_price: Math.random() * 1000,
+      gst_percent: i % 2 === 0 ? 12 : 18,
+      cgst_amount: Math.random() * 50,
+      sgst_amount: Math.random() * 50,
     })),
     totalAmount: 400,
     discount: 10,

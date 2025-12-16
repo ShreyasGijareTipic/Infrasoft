@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import {
   CAlert,
@@ -24,6 +23,7 @@ import {
   CModalHeader,
   CModalTitle,
   CFormCheck,
+  CBadge,
 } from '@coreui/react';
 import { getAPICall, post, postFormData } from '../../../util/api';
 import { useNavigate } from 'react-router-dom';
@@ -32,7 +32,7 @@ import { useTranslation } from 'react-i18next';
 import Select from "react-select";
 import i18n from 'i18next';
 import { paymentTypes, receiver_bank } from '../../../util/Feilds';
-import { cilSearch, cilX } from '@coreui/icons';
+import { cilSearch, cilX, cilTrash, cilCloudUpload } from '@coreui/icons';
 import CIcon from '@coreui/icons-react';
 import ProjectSelectionModal from '../../common/ProjectSelectionModal'; // adjust path as needed
 
@@ -47,6 +47,11 @@ const NewExpense = () => {
   const [customerSuggestions, setCustomerSuggestions] = useState([]);
   const [customerName, setCustomerName] = useState({ name: '', id: null });
   // console.log(customerName);
+
+  // State for multiple photos
+  const [photos, setPhotos] = useState([]);
+  const [showPhotoPreviewModal, setShowPhotoPreviewModal] = useState(false);
+  const fileInputRef = useRef(null);
 
   const navigate = useNavigate();
   const { showToast } = useToast();
@@ -291,6 +296,15 @@ const handleChange = (e) => {
       return updated;
     }
 
+    // checkbox - photoAvailable
+    if (type === "checkbox" && name === "photoAvailable") {
+      updated.photoAvailable = checked;
+      if (!checked) {
+        setPhotos([]); // Clear photos if photoAvailable is unchecked
+      }
+      return updated;
+    }
+
     // price or qty -> recalc total_price, then recompute taxes (if GST on)
     if (name === "price" || name === "qty") {
       updated[name] = value === '' ? '' : value;
@@ -335,6 +349,64 @@ const handleChange = (e) => {
   });
 };
 
+// Handle multiple photo file selection
+const handlePhotoChange = (e) => {
+  const files = Array.from(e.target.files);
+  const validFiles = [];
+
+  files.forEach(file => {
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
+    if (!validTypes.includes(file.type)) {
+      showToast('warning', `${file.name} is not a valid file type. Only JPG, PNG, and PDF are allowed.`);
+      return;
+    }
+
+    // Validate file size (4MB max)
+    if (file.size > 4096 * 1024) {
+      showToast('warning', `${file.name} exceeds 4MB size limit.`);
+      return;
+    }
+
+    validFiles.push({
+      file: file,
+      preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : null,
+      name: file.name,
+      size: (file.size / 1024).toFixed(2),
+      type: file.type.includes('pdf') ? 'pdf' : 'image',
+      remark: '',
+      id: Date.now() + Math.random() // Temporary ID for tracking
+    });
+  });
+
+  setPhotos(prev => [...prev, ...validFiles]);
+  
+  // Reset file input
+  if (fileInputRef.current) {
+    fileInputRef.current.value = '';
+  }
+};
+
+// Remove a photo from the list
+const removePhoto = (photoId) => {
+  setPhotos(prev => {
+    const updated = prev.filter(p => p.id !== photoId);
+    // Revoke object URL to prevent memory leak
+    const photo = prev.find(p => p.id === photoId);
+    if (photo && photo.preview) {
+      URL.revokeObjectURL(photo.preview);
+    }
+    return updated;
+  });
+};
+
+// Update photo remark
+const updatePhotoRemark = (photoId, remark) => {
+  setPhotos(prev => prev.map(p => 
+    p.id === photoId ? { ...p, remark } : p
+  ));
+};
+
 
 
 
@@ -376,6 +448,7 @@ const handleChange = (e) => {
         ...state,
         expense_type_name: expenseType ? getDisplayName(expenseType, currentLang) : 'Unknown',
         customer_name: customerName.name,
+        photos: [...photos], // Include photos
         id: Date.now()
       };
 
@@ -417,6 +490,7 @@ const handleChange = (e) => {
       isGst: expense.isGst,
     });
     setCustomerName({ name: expense.customer_name, id: expense.project_id }); // ✅ Changed from customer_id to project_id
+    setPhotos(expense.photos || []); // Load photos when editing
     setEditingExpense(expense);
     setValidated(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -461,8 +535,8 @@ const handleChange = (e) => {
 
     // ✅ Only validate if photoAvailable is ON
     if (state.photoAvailable) {
-      if (!(state.photo_url instanceof File)) {
-        showToast("danger", "Please upload a photo since 'Photo Available' is checked.");
+      if (photos.length === 0) {
+        showToast("danger", "Please upload at least one photo since 'Photo Available' is checked.");
         return;
       }
     }
@@ -501,9 +575,14 @@ const handleChange = (e) => {
     formData.append("igst", state.igstAmount || "");
 
 
-    // ✅ Add file only if selected
-    if (state.photo_url instanceof File) {
-      formData.append("photo_url", state.photo_url);
+    // ✅ Add multiple photos if selected
+    if (state.photoAvailable && photos.length > 0) {
+      photos.forEach((photo, index) => {
+        formData.append(`photos[${index}]`, photo.file);
+        if (photo.remark) {
+          formData.append(`photo_remarks[${index}]`, photo.remark);
+        }
+      });
     }
 
     if (state.expense_id && state.price > 0 && state.qty > 0 && state.project_id) {
@@ -539,8 +618,29 @@ const handleChange = (e) => {
   const confirmSubmitAllExpenses = async () => {
     try {
       const promises = expensesList.map(expense => {
-        const { id, expense_type_name, customer_name, ...expenseData } = expense;
-        return post('/api/expense', expenseData);
+        const { id, expense_type_name, customer_name, photos, ...expenseData } = expense;
+        
+        // Create FormData for each expense
+        const formData = new FormData();
+        
+        // Add all expense data
+        Object.keys(expenseData).forEach(key => {
+          if (expenseData[key] !== null && expenseData[key] !== undefined && expenseData[key] !== '') {
+            formData.append(key, expenseData[key]);
+          }
+        });
+        
+        // Add photos if available
+        if (expense.photoAvailable && photos && photos.length > 0) {
+          photos.forEach((photo, index) => {
+            formData.append(`photos[${index}]`, photo.file);
+            if (photo.remark) {
+              formData.append(`photo_remarks[${index}]`, photo.remark);
+            }
+          });
+        }
+        
+        return postFormData('/api/expense', formData);
       });
 
       const results = await Promise.all(promises);
@@ -609,6 +709,7 @@ const handleChange = (e) => {
     });
     setCustomerName({ name: '', id: null });
     setCustomerSuggestions([]);
+    setPhotos([]); // Clear photos
     setValidated(false);
   };
 
@@ -1260,17 +1361,33 @@ const handleChange = (e) => {
                   </div>
 
                   {state.photoAvailable ? (
-                    <div className="col-sm-6">
-                      <CFormLabel htmlFor="photo_url"><b>Upload Photo</b></CFormLabel>
-                      <CFormInput
-                        type="file"
-                        id="photo_url"
-                        name="photo_url"
-                        // accept="image/*"
-                        accept="image/png, image/jpeg, image/jpg, application/pdf"
-                        onChange={handleChange}
-                      />
-                    </div>
+                    <>
+                      <div className="col-sm-6">
+                        <CFormLabel htmlFor="photo_files"><b>Upload Photos (JPG, PNG, PDF - Max 4MB each)</b></CFormLabel>
+                        <div className="d-flex gap-2">
+                          <CFormInput
+                            ref={fileInputRef}
+                            type="file"
+                            id="photo_files"
+                            name="photo_files"
+                            accept="image/png, image/jpeg, image/jpg, application/pdf"
+                            onChange={handlePhotoChange}
+                            multiple
+                            style={{ flex: 1 }}
+                          />
+                          {photos.length > 0 && (
+                            <CButton 
+                              color="info" 
+                              onClick={() => setShowPhotoPreviewModal(true)}
+                              type="button"
+                            >
+                              Preview ({photos.length})
+                            </CButton>
+                          )}
+                        </div>
+                        <small className="text-muted">You can select multiple files at once</small>
+                      </div>
+                    </>
                   ) : (
                     <div className="col-sm-6">
                       <CFormLabel htmlFor="photo_remark"><b>Photo Remark</b></CFormLabel>
@@ -1344,6 +1461,7 @@ const handleChange = (e) => {
                         <CTableHeaderCell>{t("LABELS.price")}</CTableHeaderCell>
                         <CTableHeaderCell>{t("LABELS.quantity")}</CTableHeaderCell>
                         <CTableHeaderCell>{t("LABELS.total")}</CTableHeaderCell>
+                        <CTableHeaderCell>Photos</CTableHeaderCell>
                         <CTableHeaderCell>{t("LABELS.actions")}</CTableHeaderCell>
                       </CTableRow>
                     </CTableHead>
@@ -1360,6 +1478,13 @@ const handleChange = (e) => {
                           <CTableDataCell>{formatCurrency(expense.price)}</CTableDataCell>
                           <CTableDataCell>{expense.qty}</CTableDataCell>
                           <CTableDataCell>{formatCurrency(expense.total_price)}</CTableDataCell>
+                          <CTableDataCell>
+                            {expense.photos && expense.photos.length > 0 ? (
+                              <CBadge color="success">{expense.photos.length} file{expense.photos.length > 1 ? 's' : ''}</CBadge>
+                            ) : (
+                              <CBadge color="secondary">No photos</CBadge>
+                            )}
+                          </CTableDataCell>
                           <CTableDataCell>
                             <CButton
                               color="info"
@@ -1424,6 +1549,85 @@ const handleChange = (e) => {
           </CButton>
           <CButton color="primary" onClick={confirmSubmitAllExpenses}>
             {t("LABELS.confirm_submit")}
+          </CButton>
+        </CModalFooter>
+      </CModal>
+
+      {/* Photo Preview Modal */}
+      <CModal 
+        visible={showPhotoPreviewModal} 
+        onClose={() => setShowPhotoPreviewModal(false)}
+        size="xl"
+        scrollable
+      >
+        <CModalHeader>
+          <CModalTitle>Selected Photos ({photos.length})</CModalTitle>
+        </CModalHeader>
+        <CModalBody>
+          <div className="row g-3">
+            {photos.map((photo) => (
+              <div key={photo.id} className="col-md-6 col-lg-4">
+                <CCard className="h-100">
+                  <CCardBody>
+                    <div 
+                      className="d-flex align-items-center justify-content-center mb-2" 
+                      style={{ 
+                        height: '200px', 
+                        backgroundColor: '#f8f9fa',
+                        borderRadius: '4px',
+                        overflow: 'hidden'
+                      }}
+                    >
+                      {photo.type === 'image' ? (
+                        <img
+                          src={photo.preview}
+                          alt={photo.name}
+                          style={{ 
+                            maxWidth: '100%',
+                            maxHeight: '100%',
+                            objectFit: 'contain'
+                          }}
+                        />
+                      ) : (
+                        <div className="text-center">
+                          <CIcon icon={cilCloudUpload} size="4xl" />
+                          <div className="mt-2">
+                            <CBadge color="danger">PDF</CBadge>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <div className="mb-2">
+                      <small className="text-muted">
+                        <strong>{photo.name}</strong><br />
+                        {photo.size} KB
+                      </small>
+                    </div>
+                    <CFormInput
+                      type="text"
+                      placeholder="Enter remark (optional)"
+                      value={photo.remark}
+                      onChange={(e) => updatePhotoRemark(photo.id, e.target.value)}
+                      className="mb-2"
+                      size="sm"
+                    />
+                    <CButton
+                      color="danger"
+                      size="sm"
+                      onClick={() => removePhoto(photo.id)}
+                      className="w-100"
+                    >
+                      <CIcon icon={cilTrash} /> Remove
+                    </CButton>
+                  </CCardBody>
+                </CCard>
+              </div>
+            ))}
+          </div>
+        </CModalBody>
+        <CModalFooter>
+          <CButton color="secondary" onClick={() => setShowPhotoPreviewModal(false)}>
+            Close
           </CButton>
         </CModalFooter>
       </CModal>

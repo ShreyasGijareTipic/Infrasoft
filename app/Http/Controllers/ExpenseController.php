@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Expense;
+use App\Models\ExpensePhoto;
 use App\Models\ExpenseSummary;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -39,8 +40,11 @@ class ExpenseController extends Controller
                 return response()->json(['error' => 'Not Allowed'], 403);
             }
 
-            $query = Expense::with(['expenseType:id,name,expense_category', 'project:id,project_name'])
-                ->where('company_id', $companyId);
+            $query = Expense::with([
+                'expenseType:id,name,expense_category',
+                'project:id,project_name',
+                'photos' // Load photos relationship
+            ])->where('company_id', $companyId);
 
             if ($expenseTypeId) {
                 $query->where('expense_id', $expenseTypeId);
@@ -55,7 +59,7 @@ class ExpenseController extends Controller
             }
 
             if (!$expenseTypeId && !$customerId && !($startDate && $endDate)) {
-                return response()->json(['error' => 'Please provide at least one filter (Date Range, Customer, or Expense Type)'], 422);
+                return response()->json(['error' => 'Please provide at least one filter'], 422);
             }
 
             $summaryQuery = Expense::where('company_id', $companyId);
@@ -96,7 +100,7 @@ class ExpenseController extends Controller
     }
 
     /**
-     * Store a newly created expense
+     * Store a newly created expense with multiple photos
      * POST /expenses
      */
     public function store(Request $request)
@@ -115,7 +119,8 @@ class ExpenseController extends Controller
             'show' => 'required|boolean',
             'isGst' => 'nullable|boolean',
             'photoAvailable' => 'nullable|boolean',
-            'photo_url' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:4096',
+            'photos.*' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:4096',
+            'photo_remarks.*' => 'nullable|string',
             'photo_remark' => 'nullable|string',
             'bank_name' => 'nullable|string',
             'acc_number' => 'nullable|string',
@@ -129,65 +134,100 @@ class ExpenseController extends Controller
             'igst' => 'nullable|numeric',
         ]);
 
-        $photoPath = null;
-
-        if ($request->hasFile('photo_url')) {
-            $photoPath = ImageCompressor::compressAndSave(
-                $request->file('photo_url'),
-                'bill',
-                1024
-            );
-        }
-
-        $expense = Expense::create([
-            'project_id' => $request->project_id,
-            'name' => $request->name,
-            'expense_date' => $request->expense_date,
-            'price' => $request->price,
-            'qty' => $request->qty,
-            'total_price' => $request->total_price,
-            'expense_id' => $request->expense_id,
-            'contact' => $request->contact,
-            'payment_by' => $request->payment_by,
-            'payment_type' => $request->payment_type,
-            'pending_amount' => $request->pending_amount,
-            'isGst' => $request->isGst,
-            'photoAvailable' => $request->photoAvailable,
-            'photo_url' => $photoPath,
-            'photo_remark' => $request->photo_remark,
-            'bank_name' => $request->bank_name,
-            'acc_number' => $request->acc_number,
-            'ifsc' => $request->ifsc,
-            'aadhar' => $request->aadhar,
-            'pan' => $request->pan,
-            'transaction_id' => $request->transaction_id,
-            'show' => $request->show,
-            'company_id' => $user->company_id,
-            'created_by' => $user->id,
-            'updated_by' => $user->id,
-            'gst' => $request->gst,
-            'sgst' => $request->sgst,
-            'cgst' => $request->cgst,
-            'igst' => $request->igst,
-        ]);
-
-        ExpenseSummary::updateOrCreate(
-            [
-                'expense_date' => $request->expense_date,
-                'company_id' => $user->company_id,
+        DB::beginTransaction();
+        try {
+            $expense = Expense::create([
                 'project_id' => $request->project_id,
-            ],
-            [
-                'total_expense' => DB::raw('total_expense + ' . $request->total_price),
-                'expense_count' => DB::raw('expense_count + 1'),
-            ]
-        );
+                'name' => $request->name,
+                'expense_date' => $request->expense_date,
+                'price' => $request->price,
+                'qty' => $request->qty,
+                'total_price' => $request->total_price,
+                'expense_id' => $request->expense_id,
+                'contact' => $request->contact,
+                'payment_by' => $request->payment_by,
+                'payment_type' => $request->payment_type,
+                'pending_amount' => $request->pending_amount,
+                'isGst' => $request->isGst,
+                'photoAvailable' => $request->photoAvailable,
+                'photo_url' => null, // Keep for backward compatibility
+                'photo_remark' => $request->photo_remark,
+                'bank_name' => $request->bank_name,
+                'acc_number' => $request->acc_number,
+                'ifsc' => $request->ifsc,
+                'aadhar' => $request->aadhar,
+                'pan' => $request->pan,
+                'transaction_id' => $request->transaction_id,
+                'show' => $request->show,
+                'company_id' => $user->company_id,
+                'created_by' => $user->id,
+                'updated_by' => $user->id,
+                'gst' => $request->gst,
+                'sgst' => $request->sgst,
+                'cgst' => $request->cgst,
+                'igst' => $request->igst,
+            ]);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Expense created successfully.',
-            'expense' => $expense,
-        ]);
+            // Handle multiple photos
+            if ($request->hasFile('photos')) {
+                $photos = $request->file('photos');
+                $remarks = $request->input('photo_remarks', []);
+                
+                foreach ($photos as $index => $photo) {
+                    // Validate the file is valid and uploaded successfully
+                    if ($photo->isValid()) {
+                        try {
+                            // Get file info BEFORE compression
+                            $originalSize = round($photo->getSize() / 1024); // Original size in KB
+                            $extension = strtolower($photo->getClientOriginalExtension());
+                            $photoType = in_array($extension, ['pdf']) ? 'pdf' : 'image';
+                            
+                            // Compress and save the photo (returns relative path)
+                            $photoPath = ImageCompressor::compressAndSave($photo, 'bill', 1024);
+                            
+                            // Get compressed file size
+                            $fullPath = $_SERVER['DOCUMENT_ROOT'] . '/' . $photoPath;
+                            $compressedSize = file_exists($fullPath) ? round(filesize($fullPath) / 1024) : $originalSize;
+                            
+                            // Create photo record
+                            ExpensePhoto::create([
+                                'expense_id' => $expense->id,
+                                'photo_url' => $photoPath,
+                                'photo_type' => $photoType,
+                                'file_size' => $compressedSize,
+                                'remark' => $remarks[$index] ?? null,
+                            ]);
+                        } catch (\Exception $e) {
+                            // Log error but continue with other photos
+                            \Log::error('Photo upload error: ' . $e->getMessage());
+                        }
+                    }
+                }
+            }
+
+            ExpenseSummary::updateOrCreate(
+                [
+                    'expense_date' => $request->expense_date,
+                    'company_id' => $user->company_id,
+                    'project_id' => $request->project_id,
+                ],
+                [
+                    'total_expense' => DB::raw('total_expense + ' . $request->total_price),
+                    'expense_count' => DB::raw('expense_count + 1'),
+                ]
+            );
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Expense created successfully.',
+                'expense' => $expense->load('photos'),
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
     }
 
     /**
@@ -201,8 +241,12 @@ class ExpenseController extends Controller
         $userType = $user->type;
 
         try {
-            if (in_array($userType, [0, 1,2, 3])) {
-                $expense = Expense::where('id', $id)->where('company_id', $companyId)->first();
+            if (in_array($userType, [0, 1, 2, 3])) {
+                $expense = Expense::with('photos')
+                    ->where('id', $id)
+                    ->where('company_id', $companyId)
+                    ->first();
+                    
                 if ($expense) {
                     return response()->json([
                         'success' => true,
@@ -238,13 +282,15 @@ class ExpenseController extends Controller
             'bank_name' => 'nullable|string',
             'acc_number' => 'nullable|string',
             'ifsc' => 'nullable|string',
-            'aadhar' => 'nullable|string',
-            'pan' => 'nullable|string',
             'transaction_id' => 'nullable|string',
             'gst' => 'nullable|numeric',
             'sgst' => 'nullable|numeric',
             'cgst' => 'nullable|numeric',
             'igst' => 'nullable|numeric',
+            'new_photos.*' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:4096',
+            'new_photo_remarks.*' => 'nullable|string',
+            'delete_photo_ids' => 'nullable|array',
+            'delete_photo_ids.*' => 'integer|exists:expense_photos,id',
         ]);
 
         $expense = Expense::where('id', $id)->where('company_id', $companyId)->first();
@@ -253,54 +299,104 @@ class ExpenseController extends Controller
             return response()->json(['message' => 'Expense not found'], 404);
         }
 
-        $oldTotal = $expense->total_price;
-        $oldDate = $expense->expense_date;
-        $oldProjectId = $expense->project_id;
+        DB::beginTransaction();
+        try {
+            $oldTotal = $expense->total_price;
+            $oldDate = $expense->expense_date;
+            $oldProjectId = $expense->project_id;
 
-        $expense->update([
-            'expense_id' => $request->expense_id,
-            'name' => $request->name,
-            'expense_date' => $request->expense_date,
-            'price' => $request->price,
-            'qty' => $request->qty,
-            'total_price' => $request->total_price,
-            'show' => $request->show,
-            'updated_by' => $user->id,
-             'payment_by' => $request->payment_by,
-            'payment_type' => $request->payment_type,
-            'bank_name' => $request->bank_name,
-            'acc_number' => $request->acc_number,
-            'ifsc' => $request->ifsc,
-            'transaction_id' => $request->transaction_id,
-            'gst' => $request->gst,
-            'sgst' => $request->sgst,
-            'cgst' => $request->cgst,
-            'igst' => $request->igst,
-        ]);
-
-        ExpenseSummary::where('expense_date', $oldDate)
-            ->where('company_id', $companyId)
-            ->where('project_id', $oldProjectId)
-            ->update([
-                'total_expense' => DB::raw('total_expense - ' . $oldTotal),
+            $expense->update([
+                'expense_id' => $request->expense_id,
+                'name' => $request->name,
+                'expense_date' => $request->expense_date,
+                'price' => $request->price,
+                'qty' => $request->qty,
+                'total_price' => $request->total_price,
+                'show' => $request->show,
+                'updated_by' => $user->id,
+                'payment_by' => $request->payment_by,
+                'payment_type' => $request->payment_type,
+                'bank_name' => $request->bank_name,
+                'acc_number' => $request->acc_number,
+                'ifsc' => $request->ifsc,
+                'transaction_id' => $request->transaction_id,
+                'gst' => $request->gst,
+                'sgst' => $request->sgst,
+                'cgst' => $request->cgst,
+                'igst' => $request->igst,
             ]);
 
-        ExpenseSummary::updateOrCreate(
-            [
-                'expense_date' => $request->expense_date,
-                'company_id' => $companyId,
-                'project_id' => $request->project_id,
-            ],
-            [
-                'total_expense' => DB::raw('total_expense + ' . $request->total_price),
-            ]
-        );
+            // Delete photos if requested
+            if ($request->has('delete_photo_ids')) {
+                ExpensePhoto::whereIn('id', $request->delete_photo_ids)
+                    ->where('expense_id', $expense->id)
+                    ->delete();
+            }
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Expense updated successfully.',
-            'expense' => $expense,
-        ]);
+            // Add new photos
+            if ($request->hasFile('new_photos')) {
+                $photos = $request->file('new_photos');
+                $remarks = $request->input('new_photo_remarks', []);
+                
+                foreach ($photos as $index => $photo) {
+                    // Validate the file is valid and uploaded successfully
+                    if ($photo->isValid()) {
+                        try {
+                            // Get file info BEFORE compression
+                            $originalSize = round($photo->getSize() / 1024);
+                            $extension = strtolower($photo->getClientOriginalExtension());
+                            $photoType = in_array($extension, ['pdf']) ? 'pdf' : 'image';
+                            
+                            // Compress and save
+                            $photoPath = ImageCompressor::compressAndSave($photo, 'bill', 1024);
+                            
+                            // Get compressed file size
+                            $fullPath = $_SERVER['DOCUMENT_ROOT'] . '/' . $photoPath;
+                            $compressedSize = file_exists($fullPath) ? round(filesize($fullPath) / 1024) : $originalSize;
+                            
+                            ExpensePhoto::create([
+                                'expense_id' => $expense->id,
+                                'photo_url' => $photoPath,
+                                'photo_type' => $photoType,
+                                'file_size' => $compressedSize,
+                                'remark' => $remarks[$index] ?? null,
+                            ]);
+                        } catch (\Exception $e) {
+                            \Log::error('Photo upload error in update: ' . $e->getMessage());
+                        }
+                    }
+                }
+            }
+
+            ExpenseSummary::where('expense_date', $oldDate)
+                ->where('company_id', $companyId)
+                ->where('project_id', $oldProjectId)
+                ->update([
+                    'total_expense' => DB::raw('total_expense - ' . $oldTotal),
+                ]);
+
+            ExpenseSummary::updateOrCreate(
+                [
+                    'expense_date' => $request->expense_date,
+                    'company_id' => $companyId,
+                    'project_id' => $request->project_id,
+                ],
+                [
+                    'total_expense' => DB::raw('total_expense + ' . $request->total_price),
+                ]
+            );
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Expense updated successfully.',
+                'expense' => $expense->load('photos'),
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
     }
 
     /**
@@ -322,6 +418,7 @@ class ExpenseController extends Controller
         $date = $expense->expense_date;
         $projectId = $expense->project_id;
 
+        // Photos will be deleted automatically due to cascade
         $expense->delete();
 
         ExpenseSummary::where('expense_date', $date)

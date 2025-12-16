@@ -145,8 +145,11 @@ export const generateProformaInvoicePDF = async (
   const labels = LANGUAGES[lang].labels
   const user = getUserData()
 
+  // Sort details by id ascending (like InvoiceDetails)
+  const sortedDetails = (proformaInvoice.details || []).sort((a, b) => a.id - b.id)
+
   // Check if row-level GST exists
-  const hasRowGST = proformaInvoice.details?.some(item =>
+  const hasRowGST = sortedDetails.some(item =>
     (parseFloat(item.gst_percent) || 0) > 0 ||
     (parseFloat(item.cgst_amount) || 0) > 0 ||
     (parseFloat(item.sgst_amount) || 0) > 0
@@ -157,6 +160,11 @@ export const generateProformaInvoicePDF = async (
     (parseFloat(proformaInvoice.cgst_amount) || 0) > 0 ||
     (parseFloat(proformaInvoice.sgst_amount) || 0) > 0 ||
     (parseFloat(proformaInvoice.igst_amount) || 0) > 0
+
+  // Calculate total after row-level GST
+  const totalAfterRowGST = sortedDetails.reduce((sum, item) => {
+    return sum + (parseFloat(item.total_price) || 0)
+  }, 0)
 
   const totalAmountWords = numberToWords(parseFloat(proformaInvoice.pending_amount) || 0)
 
@@ -282,14 +290,14 @@ export const generateProformaInvoicePDF = async (
           ${hasRowGST ? `
           <th style="width: 10%;">${labels.baseAmount}</th>
           <th style="width: 7%;">${labels.gstPercent}</th>
-          <th style="width: 10%;">${labels.cgst}${proformaInvoice.details[0]?.gst_percent ? ` (${parseFloat(proformaInvoice.details[0].gst_percent) / 2}%)` : ''}</th>
-          <th style="width: 10%;">${labels.sgst}${proformaInvoice.details[0]?.gst_percent ? ` (${parseFloat(proformaInvoice.details[0].gst_percent) / 2}%)` : ''}</th>
+          <th style="width: 10%;">${labels.cgst}</th>
+          <th style="width: 10%;">${labels.sgst}</th>
           ` : ''}
           <th style="width: ${hasRowGST ? '12%' : '16%'};">${labels.total}</th>
         </tr>
       </thead>
       <tbody>
-        ${(proformaInvoice.details || []).map((item, index) => {
+        ${sortedDetails.map((item, index) => {
           const qty = parseFloat(item.qty) || 0
           const price = parseFloat(item.price) || 0
           const baseAmount = qty * price
@@ -297,6 +305,8 @@ export const generateProformaInvoicePDF = async (
           const cgstAmount = parseFloat(item.cgst_amount) || 0
           const sgstAmount = parseFloat(item.sgst_amount) || 0
           const totalPrice = parseFloat(item.total_price) || 0
+          const cgstPercent = gstPercent ? gstPercent / 2 : 0
+          const sgstPercent = gstPercent ? gstPercent / 2 : 0
 
           return `
             <tr>
@@ -308,8 +318,8 @@ export const generateProformaInvoicePDF = async (
               ${hasRowGST ? `
               <td class="text-right">₹${baseAmount.toFixed(2)}</td>
               <td class="text-center">${gstPercent > 0 ? gstPercent.toFixed(2) + '%' : '-'}</td>
-              <td class="text-right">${cgstAmount > 0 ? '₹' + cgstAmount.toFixed(2) : '-'}</td>
-              <td class="text-right">${sgstAmount > 0 ? '₹' + sgstAmount.toFixed(2) : '-'}</td>
+              <td class="text-right">${cgstAmount > 0 ? '₹' + cgstAmount.toFixed(2) + ' (' + cgstPercent + '%)' : '-'}</td>
+              <td class="text-right">${sgstAmount > 0 ? '₹' + sgstAmount.toFixed(2) + ' (' + sgstPercent + '%)' : '-'}</td>
               ` : ''}
               <td class="text-right">₹${totalPrice.toFixed(2)}</td>
             </tr>
@@ -324,21 +334,21 @@ export const generateProformaInvoicePDF = async (
     <table class="border-table">
       <tr>
         <th class="text-left">${labels.taxableAmount}</th>
-        <td class="text-center">₹${parseFloat(proformaInvoice.taxable_amount || 0).toFixed(2)}</td>
+        <td class="text-center">₹${totalAfterRowGST.toFixed(2)}</td>
       </tr>
       ${parseFloat(proformaInvoice.cgst_amount) > 0 ? `
       <tr>
-        <th class="text-left">${labels.cgst} (${proformaInvoice.cgst_percentage || 9}%)</th>
+        <th class="text-left">${labels.cgst} (${proformaInvoice.cgst_percentage_calculated || 0}%)</th>
         <td class="text-center">₹${parseFloat(proformaInvoice.cgst_amount).toFixed(2)}</td>
       </tr>` : ''}
       ${parseFloat(proformaInvoice.sgst_amount) > 0 ? `
       <tr>
-        <th class="text-left">${labels.sgst} (${proformaInvoice.sgst_percentage || 9}%)</th>
+        <th class="text-left">${labels.sgst} (${proformaInvoice.sgst_percentage_calculated || 0}%)</th>
         <td class="text-center">₹${parseFloat(proformaInvoice.sgst_amount).toFixed(2)}</td>
       </tr>` : ''}
       ${parseFloat(proformaInvoice.igst_amount) > 0 ? `
       <tr>
-        <th class="text-left">${labels.igst} (${proformaInvoice.igst_percentage || 18}%)</th>
+        <th class="text-left">${labels.igst} (${proformaInvoice.igst_percentage_calculated || 0}%)</th>
         <td class="text-center">₹${parseFloat(proformaInvoice.igst_amount).toFixed(2)}</td>
       </tr>` : ''}
       <tr style="background: #d4edda;">

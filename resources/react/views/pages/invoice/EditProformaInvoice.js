@@ -36,26 +36,26 @@ const EditProformaInvoice = () => {
   const [proformaData, setProformaData] = useState(null)
 
   const [form, setForm] = useState({
-    tally_invoice_number: '',
-    invoice_date: '',
-    delivery_date: '',
-    discount: 0,
-    subtotal: 0,
-    taxableAmount: 0,
-    gstAmount: 0,
-    sgstAmount: 0,
-    cgstAmount: 0,
-    igstAmount: 0,
-    finalAmount: 0,
-    gstPercentage: 18,
-    sgstPercentage: 9,
-    cgstPercentage: 9,
-    igstPercentage: 0,
-    notes: '',
-    status: 'draft',
-    terms_conditions: '',
-    payment_terms: '',
-  })
+  tally_invoice_number: '',
+  invoice_date: '',
+  delivery_date: '',
+  discount: 0,
+  subtotal: 0,
+  taxableAmount: 0,
+  gstAmount: 0,
+  sgstAmount: 0,
+  cgstAmount: 0,
+  igstAmount: 0,
+  finalAmount: 0,
+  gstPercentage: 0,  // ✅ Changed from 18 to 0
+  sgstPercentage: 0, // ✅ Changed from 9 to 0
+  cgstPercentage: 0, // ✅ Changed from 9 to 0
+  igstPercentage: 0,
+  notes: '',
+  status: 'draft',
+  terms_conditions: '',
+  payment_terms: '',
+})
 
   const [works, setWorks] = useState([
     { work_type: '', uom: '', qty: 0, price: 0, total_price: 0, remark: '' },
@@ -119,17 +119,19 @@ const fetchProformaInvoice = async () => {
           }
 
           return {
-            work_type: item.work_type || '',
-            uom: item.uom || '',
-            qty: qty,
-            price: price,
-            total_price: totalPrice,
-            gst_percent: gstPercent,    // ✅ Preserve actual GST %
-            cgst_amount: cgstAmount,
-            sgst_amount: sgstAmount,
-            remark: item.remark || '',
-          }
-        })
+        id: item.id,  // ✅ ADD THIS LINE
+        work_type: item.work_type || '',
+        uom: item.uom || '',
+        qty: qty,
+        price: price,
+        total_price: totalPrice,
+        gst_percent: gstPercent,
+        cgst_amount: cgstAmount,
+        sgst_amount: sgstAmount,
+        remark: item.remark || '',
+      }
+    })
+    .sort((a, b) => (a.id || 0) - (b.id || 0))
       } else {
         // Set default empty work row if no items
         mappedWorks = [{
@@ -379,9 +381,9 @@ const handleWorkChange = (index, field, value) => {
       qty: 0,
       price: 0,
       total_price: 0,
-      gst_percent: 18,
-      cgst_amount: 0,
-      sgst_amount: 0,
+      gst_percent: 18,  // ✅ Keep row-level GST at 18%
+      cgst_amount: 9,
+      sgst_amount: 9,
       remark: ''
     }
   ]);
@@ -939,7 +941,7 @@ const handleWorkChange = (index, field, value) => {
 </CButton>
 
               {/* GST Details */}
-              <h6 className="mt-4 mb-3 fw-semibold text-primary border-bottom border-primary pb-2">
+             {/* <h6 className="mt-4 mb-3 fw-semibold text-primary border-bottom border-primary pb-2">
                 GST Details
               </h6>
               <CRow className="mb-3">
@@ -1007,7 +1009,7 @@ const handleWorkChange = (index, field, value) => {
                   </CInputGroup>
                   <small className="text-muted">Amount: ₹{form.igstAmount.toFixed(2)}</small>
                 </CCol>
-              </CRow>
+              </CRow> */}
 
               {/* Financial Summary */}
               <CRow className="mb-3">

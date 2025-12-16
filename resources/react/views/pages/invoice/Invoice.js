@@ -52,34 +52,33 @@ const Invoice = ({ editMode = false, initialData = null, onSubmit = null }) => {
   const dropdownRef = useRef(null);
 
   const [form, setForm] = useState({
-    projectId: null,
-    projectName: '',
-    customer_id: null,
-    customer_name: '',
-    address: '',
-    mobile_number: '',
-    customer: { name: '', address: '', mobile: '' },
-    invoiceType: 1, // Default: Quotation
-    invoiceDate: new Date().toISOString().split('T')[0],
-    deliveryDate: new Date().toISOString().split('T')[0],
-    discount: 0,
-    paidAmount: 0,
-    subtotal: 0,
-    taxableAmount: 0,
-    gstAmount: 0,
-    sgstAmount: 0,
-    cgstAmount: 0,
-    igstAmount: 0,
-    finalAmount: 0,
-    gstPercentage: 18,
-    sgstPercentage: 9,
-    cgstPercentage: 9,
-    igstPercentage: 0,
-    ref_id: '',
-    po_number: '',
-    gstOnGstMode: false,
-    
-  });
+  projectId: null,
+  projectName: '',
+  customer_id: null,
+  customer_name: '',
+  address: '',
+  mobile_number: '',
+  customer: { name: '', address: '', mobile: '' },
+  invoiceType: 1, // Default: Quotation
+  invoiceDate: new Date().toISOString().split('T')[0],
+  deliveryDate: new Date().toISOString().split('T')[0],
+  discount: 0,
+  paidAmount: 0,
+  subtotal: 0,
+  taxableAmount: 0,
+  gstAmount: 0,
+  sgstAmount: 0,
+  cgstAmount: 0,
+  igstAmount: 0,
+  finalAmount: 0,
+  gstPercentage: 0,  // ✅ Changed from 18 to 0
+  sgstPercentage: 0, // ✅ Changed from 9 to 0
+  cgstPercentage: 0, // ✅ Changed from 9 to 0
+  igstPercentage: 0,
+  ref_id: '',
+  po_number: '',
+  gstOnGstMode: false,
+});
 
   //const [works, setWorks] = useState([{ work_type: '', uom: '', qty: 0, price: 0, total_price: 0, remark: '' }]);
 
@@ -90,8 +89,8 @@ const Invoice = ({ editMode = false, initialData = null, onSubmit = null }) => {
   price: 0,
   total_price: 0,           // ← This will now be: (qty × price) + CGST + SGST
   gst_percent: 18,          // customizable per row
-  cgst_amount: 0,
-  sgst_amount: 0,
+  cgst_amount: 9,
+  sgst_amount: 9,
   remark: ''
 }]);
 
@@ -441,9 +440,9 @@ const addWorkRow = () => {
       qty: 0,
       price: 0,
       total_price: 0,
-      gst_percent: 0,  // ✅ Default to 0
-      cgst_amount: 0,
-      sgst_amount: 0,
+      gst_percent: 18,  // ✅ Row-level GST = 18% (KEEP THIS)
+      cgst_amount: 9,
+      sgst_amount: 9,
       remark: ''
     }
   ]);
@@ -483,36 +482,22 @@ const calculateTotals = (currentWorks) => {
     const rowSGST = currentWorks.reduce((sum, w) => sum + (w.sgst_amount || 0), 0);
     const rowTotalGST = rowCGST + rowSGST;
     
-    // STEP 3: Total after row-level GST (this becomes the base for global GST)
+    // STEP 3: Total after row-level GST (this is the final amount)
     const totalAfterRowGST = currentWorks.reduce((sum, w) => sum + (w.total_price || 0), 0);
     
-    // STEP 4: Apply global GST percentages ON TOP of totalAfterRowGST (GST on GST)
-    const globalSGST = totalAfterRowGST * (prev.sgstPercentage / 100);
-    const globalCGST = totalAfterRowGST * (prev.cgstPercentage / 100);
-    const globalIGST = totalAfterRowGST * (prev.igstPercentage / 100);
-    const globalTotalGST = globalSGST + globalCGST + globalIGST;
-    
-    // STEP 5: Display totals in "GST Details" section (only global GST shown here)
-    const displayGST = globalTotalGST;
-    const displaySGST = globalSGST;
-    const displayCGST = globalCGST;
-    const displayIGST = globalIGST;
-    
-    // STEP 6: Calculate final amount
-    // Final = Base + Row GST + Global GST - Discount
-    const beforeDiscount = totalAfterRowGST + globalTotalGST;
-    const finalAmount = beforeDiscount - (prev.discount || 0);
+    // STEP 4: Apply discount
+    const finalAmount = totalAfterRowGST - (prev.discount || 0);
     
     return {
       ...prev,
-      subtotal: baseSubtotal,  // Original base without any GST
-      taxableAmount: totalAfterRowGST,  // After row GST, this is taxable for global GST
+      subtotal: baseSubtotal,           // Original base without any GST
+      taxableAmount: totalAfterRowGST,  // After row GST
       
-      // GST Details section shows only the ADDITIONAL global GST
-      gstAmount: displayGST,
-      cgstAmount: displayCGST,
-      sgstAmount: displaySGST,
-      igstAmount: displayIGST,
+      // Global GST fields all stay at 0
+      gstAmount: 0,
+      cgstAmount: 0,
+      sgstAmount: 0,
+      igstAmount: 0,
       
       finalAmount: finalAmount,
     };
@@ -1009,100 +994,100 @@ const calculateTotals = (currentWorks) => {
 
               
 
-              <h6 className="mt-4 mb-3 fw-semibold text-primary border-bottom border-primary pb-2">GST Details</h6>
-<CRow className="mb-3">
-  <CCol md={3}>
-    <CFormLabel>Total GST (%)</CFormLabel>
-    <CInputGroup>
-      <CFormInput
-        type="number"
-        name="gstPercentage"
-        value={form.gstPercentage}
-        onChange={handleFormChange}
-        min="0"
-        max="100"
-        step="0.01"
-        disabled={loading}
-        placeholder="18.00"
-      />
-      <CInputGroupText>%</CInputGroupText>
-    </CInputGroup>
-    <div className="form-text text-muted">
-      <small>GST Amount: ₹{Number(form.gstAmount || 0).toFixed(2)}</small>
-    </div>
-  </CCol>
-  <CCol md={3}>
-    <CFormLabel>SGST (%)</CFormLabel>
-    <CInputGroup>
-      <CFormInput
-        type="number"
-        name="sgstPercentage"
-        value={form.sgstPercentage}
-        onChange={handleFormChange}
-        min="0"
-        max="50"
-        step="0.01"
-        disabled={loading}
-        placeholder="9.00"
-      />
-      <CInputGroupText>%</CInputGroupText>
-    </CInputGroup>
-    <div className="form-text text-muted">
-      <small>SGST Amount: ₹{Number(form.sgstAmount || 0).toFixed(2)}</small>
-    </div>
-  </CCol>
-  <CCol md={3}>
-    <CFormLabel>CGST (%)</CFormLabel>
-    <CInputGroup>
-      <CFormInput
-        type="number"
-        name="cgstPercentage"
-        value={form.cgstPercentage}
-        onChange={handleFormChange}
-        min="0"
-        max="50"
-        step="0.01"
-        disabled={loading}
-        placeholder="9.00"
-      />
-      <CInputGroupText>%</CInputGroupText>
-    </CInputGroup>
-    <div className="form-text text-muted">
-      <small>CGST Amount: ₹{Number(form.cgstAmount || 0).toFixed(2)}</small>
-    </div>
-  </CCol>
-  <CCol md={3}>
-    <CFormLabel>IGST (%)</CFormLabel>
-    <CInputGroup>
-      <CFormInput
-        type="number"
-        name="igstPercentage"
-        value={form.igstPercentage}
-        onChange={handleFormChange}
-        min="0"
-        max="100"
-        step="0.01"
-        disabled={loading}
-        placeholder="0.00"
-      />
-      <CInputGroupText>%</CInputGroupText>
-    </CInputGroup>
-    <div className="form-text text-muted">
-      <small>IGST Amount: ₹{Number(form.igstAmount || 0).toFixed(2)}</small>
-    </div>
-  </CCol>
-</CRow>
+              {/*<h6 className="mt-4 mb-3 fw-semibold text-primary border-bottom border-primary pb-2">GST Details</h6>
+                <CRow className="mb-3">
+                  <CCol md={3}>
+                    <CFormLabel>Total GST (%)</CFormLabel>
+                    <CInputGroup>
+                      <CFormInput
+                        type="number"
+                        name="gstPercentage"
+                        value={form.gstPercentage}
+                        onChange={handleFormChange}
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        disabled={loading}
+                        placeholder="18.00"
+                      />
+                      <CInputGroupText>%</CInputGroupText>
+                    </CInputGroup>
+                    <div className="form-text text-muted">
+                      <small>GST Amount: ₹{Number(form.gstAmount || 0).toFixed(2)}</small>
+                    </div>
+                  </CCol>
+                  <CCol md={3}>
+                    <CFormLabel>SGST (%)</CFormLabel>
+                    <CInputGroup>
+                      <CFormInput
+                        type="number"
+                        name="sgstPercentage"
+                        value={form.sgstPercentage}
+                        onChange={handleFormChange}
+                        min="0"
+                        max="50"
+                        step="0.01"
+                        disabled={loading}
+                        placeholder="9.00"
+                      />
+                      <CInputGroupText>%</CInputGroupText>
+                    </CInputGroup>
+                    <div className="form-text text-muted">
+                      <small>SGST Amount: ₹{Number(form.sgstAmount || 0).toFixed(2)}</small>
+                    </div>
+                  </CCol>
+                  <CCol md={3}>
+                    <CFormLabel>CGST (%)</CFormLabel>
+                    <CInputGroup>
+                      <CFormInput
+                        type="number"
+                        name="cgstPercentage"
+                        value={form.cgstPercentage}
+                        onChange={handleFormChange}
+                        min="0"
+                        max="50"
+                        step="0.01"
+                        disabled={loading}
+                        placeholder="9.00"
+                      />
+                      <CInputGroupText>%</CInputGroupText>
+                    </CInputGroup>
+                    <div className="form-text text-muted">
+                      <small>CGST Amount: ₹{Number(form.cgstAmount || 0).toFixed(2)}</small>
+                    </div>
+                  </CCol>
+                  <CCol md={3}>
+                    <CFormLabel>IGST (%)</CFormLabel>
+                    <CInputGroup>
+                      <CFormInput
+                        type="number"
+                        name="igstPercentage"
+                        value={form.igstPercentage}
+                        onChange={handleFormChange}
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        disabled={loading}
+                        placeholder="0.00"
+                      />
+                      <CInputGroupText>%</CInputGroupText>
+                    </CInputGroup>
+                    <div className="form-text text-muted">
+                      <small>IGST Amount: ₹{Number(form.igstAmount || 0).toFixed(2)}</small>
+                    </div>
+                  </CCol>
+                </CRow>*/}
 <div className="alert alert-info border-0 bg-info-subtle mb-3">
   <div className="d-flex">
     <div>
       <strong className="text-info">Auto-Calculation:</strong>
       <ul className="mb-0 mt-1 text-info">
         <li>
-          <small>Enter total GST % to auto-split into CGST and SGST</small>
+          <small>Enter GST % to work row for auto-split into CGST and SGST</small>
         </li>
-        <li>
+        {/* <li>
           <small>Modify CGST or SGST to auto-update total GST %</small>
-        </li>
+        </li> */}
       </ul>
     </div>
   </div>
