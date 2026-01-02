@@ -651,33 +651,34 @@ const PurchesVendorPayment = () => {
                         <CTableDataCell><CBadge color={statusColor}>{statusText}</CBadge></CTableDataCell>
                         <CTableDataCell>{new Date(p.created_at).toLocaleDateString()}</CTableDataCell>
                         <CTableDataCell>
-                          <CButton
-                            color="info"
-                            size="sm"
-                            className="me-1"
-                            onClick={() => openLogsModal(p.purches_vendor_id)}
-                            disabled={!p.logs || p.logs.length === 0}
-                          >
-                            <CIcon icon={cilList} /> Logs ({p.logs?.length || 0})
-                          </CButton>
-                          <CButton
-                            color="success"
-                            size="sm"
-                            className="me-1"
-                            onClick={() => openPayModal(p)}
-                            disabled={!canPay}
-                            title={canPay ? "Make Payment" : "Fully Paid"}
-                          >
-                            <CIcon icon={cilDollar} /> Pay
-                          </CButton>
-                          <CButton color="warning" size="sm" className="me-1" onClick={() => openEditModal(p)}>
-                            <CIcon icon={cilPencil} />
-                          </CButton>
-                          {usertype === 1 && (
-                            <CButton color="danger" size="sm" onClick={() => openDeleteModal(p.purches_vendor_id)}>
-                              <CIcon icon={cilX} />
+                          <div className="d-flex gap-1 align-items-center">
+                            <CButton
+                              color="info"
+                              size="sm"
+                              onClick={() => openLogsModal(p.purches_vendor_id)}
+                              disabled={!p.logs || p.logs.length === 0}
+                              title={`Logs (${p.logs?.length || 0})`}
+                            >
+                              <CIcon icon={cilList} />
                             </CButton>
-                          )}
+                            <CButton
+                              color="success"
+                              size="sm"
+                              onClick={() => openPayModal(p)}
+                              disabled={!canPay}
+                              title={canPay ? "Make Payment" : "Fully Paid"}
+                            >
+                              <CIcon icon={cilDollar} />
+                            </CButton>
+                            <CButton color="warning" size="sm" onClick={() => openEditModal(p)}>
+                              Edit
+                            </CButton>
+                            {usertype === 1 && (
+                              <CButton color="danger" size="sm" onClick={() => openDeleteModal(p.purches_vendor_id)}>
+                                Delete
+                              </CButton>
+                            )}
+                          </div>
                         </CTableDataCell>
                       </CTableRow>
                     );

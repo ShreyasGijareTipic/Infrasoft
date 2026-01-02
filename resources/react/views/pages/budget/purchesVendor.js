@@ -457,14 +457,16 @@ const downloadExcel = () => {
                         <CTableDataCell>{new Date(p.date).toLocaleDateString()}</CTableDataCell>
                         <CTableDataCell>{p.about || '—'}</CTableDataCell>
                         <CTableDataCell>
-                          <CButton color="warning" size="sm" className="me-2" onClick={() => openEdit(p)}>
-                            Edit
-                          </CButton>
-                          {usertype === 1 && (
-                            <CButton color="danger" size="sm" onClick={() => openDeleteModal(p.id)}>
-                              Delete
+                          <div className="d-flex gap-2">
+                            <CButton color="warning" size="sm" onClick={() => openEdit(p)}>
+                              Edit
                             </CButton>
-                          )}
+                            {usertype === 1 && (
+                              <CButton color="danger" size="sm" onClick={() => openDeleteModal(p.id)}>
+                                Delete
+                              </CButton>
+                            )}
+                          </div>
                         </CTableDataCell>
                       </CTableRow>
                     ))}
