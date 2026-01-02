@@ -264,7 +264,9 @@ const ProformaInvoiceDetails = () => {
                 <strong>Invoice No:</strong> {proformaInvoice.proforma_invoice_number}
               </p>
               <p className="mb-1">
-                <strong>Date:</strong> {proformaInvoice.invoice_date}
+                <strong>Date:</strong>{' '}
+{new Date(proformaInvoice.invoice_date).toLocaleDateString('en-IN')}
+
               </p>
               <p className="mb-1">
                 <strong>Project:</strong> {proformaInvoice.project?.project_name || 'N/A'}
