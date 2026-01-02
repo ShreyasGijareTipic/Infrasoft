@@ -526,6 +526,13 @@ const downloadExcel = () => {
           onSuccess={refreshTable}
         />
       )}
+
+      <ConfirmationModal
+        visible={deleteModalVisible}
+        setVisible={setDeleteModalVisible}
+        resource="Purchase Record"
+        onYes={handleDelete}
+      />
     </>
   );
 };
