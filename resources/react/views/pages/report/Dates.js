@@ -196,7 +196,8 @@ export function Quarter({ setStateQuarter }) {
 
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
-  const [selectedYear, setSelectedYear] = useState(currentYear.toString());
+  const initialYear = currentMonth <= 3 ? (currentYear - 1).toString() : currentYear.toString();
+  const [selectedYear, setSelectedYear] = useState(initialYear);
   const [selectedQuarter, setSelectedQuarter] = useState(getCurrentQuarter(currentMonth));
 
   useEffect(() => {
@@ -257,7 +258,9 @@ export function Quarter({ setStateQuarter }) {
 
 export function Year({ setStateYear }) {
   const currentYear = new Date().getFullYear();
-  const [selectedYear, setSelectedYear] = useState(currentYear.toString());
+  const currentMonth = new Date().getMonth() + 1;
+  const initialYear = currentMonth <= 3 ? (currentYear - 1).toString() : currentYear.toString();
+  const [selectedYear, setSelectedYear] = useState(initialYear);
 
   useEffect(() => {
     const year = parseInt(selectedYear, 10);

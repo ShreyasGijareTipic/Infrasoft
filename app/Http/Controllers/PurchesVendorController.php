@@ -616,6 +616,60 @@ public function updatePurchesVendorPayment(Request $request)
 }
 
 
+/*-----------------------------------------
+| 5️⃣ DELETE PURCHASE VENDOR (CASCADING)
+------------------------------------------*/
+public function destroy($id)
+{
+    // 1. Find the purchase record
+    $purchase = PurchesVendorModel::find($id);
+
+    if (!$purchase) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Purchase vendor not found for deletion.'
+        ], 404);
+    }
+
+    // 2. Delete all related logs
+    PurchesVendorPaymentLog::where('purches_vendor_id', $id)->delete();
+
+    // 3. Delete the payment master record
+    PurchesVendorPayment::where('purches_vendor_id', $id)->delete();
+
+    // 4. Delete the purchase record itself
+    $purchase->delete();
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Purchase and all related payments/logs deleted successfully.',
+    ], 200);
+}
+
+
+/*-----------------------------------------
+| 6️⃣ DELETE PAYMENT LOG (DELETES ENTIRE WORK)
+------------------------------------------*/
+public function deleteLog($id)
+{
+    // 1. Find the log entry
+    $log = PurchesVendorPaymentLog::find($id);
+
+    if (!$log) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Payment log not found.'
+        ], 404);
+    }
+
+    // 2. Get the purchase ID before deletion
+    $purches_vendor_id = $log->purches_vendor_id;
+
+    // 3. Call the same cascading deletion logic as destroy
+    return $this->destroy($purches_vendor_id);
+}
+
+
 // public function updatePurchesVendorPayment(Request $request)
 // {
 //     // 1. Validate request

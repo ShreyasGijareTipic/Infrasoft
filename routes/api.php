@@ -226,6 +226,7 @@ Route::post('/purchesVendor', [PurchesVendorController::class, 'store']);
 Route::get('/purchesVendorById/{id}',[PurchesVendorController::class, 'show']);
 Route::put('/purchesVendorById/{id}',[PurchesVendorController::class, 'update']);
 Route::delete('/purchesVendorById/{id}',[PurchesVendorController::class, 'destroy']);
+Route::delete('/deleteVendorPaymentLog/{id}', [PurchesVendorController::class, 'deleteLog']);
 
 Route::post('/addVendorPayment', [PurchesVendorController::class, 'addVendorPayment']); 
 Route::put('/updateVendorPayment/{id}', [PurchesVendorController::class, 'updateVendorPayment']);
